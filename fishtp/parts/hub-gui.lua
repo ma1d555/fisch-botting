@@ -1,22 +1,23 @@
 -- ============================================================
 -- GUI
 -- ============================================================
-local MainWindow, FishTab, TPTab, ProgTab
+local MainWindow, FishTab, TPTab, ProgTab, SettingsTab
 
 local function setupWindow()
-    MainWindow = Speed_Library:CreateWindow({
-        Title = "ShieldTeam || Fishing + TP || " .. executorName,
-        Description = "Fisch • Fishing + Teleport • [LShift] toggle",
+    FishSettings.autoloadTheme()
+    MainWindow = FishUI:CreateWindow({
+        Title = "FishTP • " .. executorName,
+        Description = "[RShift] toggle",
         ["Tab Width"] = 110,
-        SizeUi = UDim2.fromOffset(580, 420),
-        Visible = false,
+        SizeUi = UDim2.fromOffset(640, 440),
+        Visible = true,
     })
-    if MainWindow and MainWindow.SetVisible then MainWindow:SetVisible(true) end
 
-    local Grp = MainWindow:CreateGroup({"Main", "rbxassetid://7733960981"})
-    FishTab = Grp:CreateTab({ "Fishing", "", "Auto Fishing & Cast" })
-    TPTab   = Grp:CreateTab({ "TP",      "", "Area & Teleport" })
-    ProgTab = Grp:CreateTab({ "Progression", "", "Rod questlines" })
+    local Grp = MainWindow:CreateGroup({"Main"})
+    FishTab = Grp:CreateTab({ "Fishing" })
+    TPTab   = Grp:CreateTab({ "TP", NoSave = true }) -- its dropdowns teleport when set, so configs skip them
+    ProgTab = Grp:CreateTab({ "Progression" })
+    SettingsTab = Grp:CreateTab({ "Settings", NoSave = true })
     getgenv().FishTPWindow = MainWindow
 end
 
@@ -38,7 +39,7 @@ local function buildFishingTab()
     })
 
     Left:AddToggle({
-        Title = "Instant Bobber / Auto Cast",
+        Title = "Auto Cast",
         Default = _G.Config.AutoCast or false,
         Callback = function(v)
             _G.Config.AutoCast = v
@@ -48,7 +49,7 @@ local function buildFishingTab()
     })
 
     Left:AddToggle({
-        Title = "Legit Cast (real click, let go at full power)",
+        Title = "Legit Cast",
         Default = _G.Config.LegitCast or false,
         Callback = function(v)
             _G.Config.LegitCast = v
@@ -94,50 +95,50 @@ local function buildFishingTab()
     })
 
     Left:AddSlider({
-        Title = "Auto Sell Interval (min)",
+        Title = "Sell Interval (min)",
         Min = 2, Max = 10,
         Default = _G.Config.AutoSellInterval or 3,
         Callback = function(v) _G.Config.AutoSellInterval = v end
     })
 
     Left:AddButton({
-        Title = "Unload script (run again without rejoining)",
+        Title = "Unload",
         Callback = function()
             if getgenv().FishTPUnload then getgenv().FishTPUnload() end
         end
     })
 
     Left:AddButton({
-        Title = "Server hop",
+        Title = "Server Hop",
         Callback = function() task.spawn(Progression.serverHop, false) end
     })
 
     local fishJobId = ""
     if Left.AddInput then
         Left:AddInput({
-            Title = "Job ID to join",
-            Content = "the server's job ID",
+            Title = "Job ID",
+            Placeholder = "Job ID",
             Default = "",
             Callback = function(v) fishJobId = tostring(v or "") end
         })
         Left:AddButton({
-            Title = "Join that server",
+            Title = "Join Server",
             Callback = function() task.spawn(Progression.joinServer, fishJobId, false) end
         })
     end
 
     Left:AddButton({
-        Title = "Collect meteors",
+        Title = "Collect Meteors",
         Callback = function() task.spawn(Progression.collectSky, "meteor") end
     })
 
     Left:AddButton({
-        Title = "Collect cosmic craters",
+        Title = "Collect Craters",
         Callback = function() task.spawn(Progression.collectStarCraters) end
     })
 
     Left:AddButton({
-        Title = "Copy this server's job ID",
+        Title = "Copy Job ID",
         Callback = function()
             if setclipboard then setclipboard(game.JobId) end
         end
@@ -161,34 +162,34 @@ local function buildFishingTab()
     })
 
     Right:AddSlider({
-        Title = "Reel delay (ms)",
+        Title = "Reel Delay (ms)",
         Min = 0, Max = 300, Increment = 10,
         Default = _G.Config.InstantReelDelayMs or 280,
         Callback = function(v) _G.Config.InstantReelDelayMs = v end
     })
 
     Right:AddSlider({
-        Title = "Bar size (% of bar, 0 = rod's)",
+        Title = "Bar Size %",
         Min = 0, Max = 100, Increment = 5,
         Default = _G.Config.BarSizePercent or 0,
         Callback = function(v) _G.Config.BarSizePercent = v end
     })
 
     Right:AddSlider({
-        Title = "Progress speed (%)",
+        Title = "Progress Speed %",
         Min = 100, Max = 4000, Increment = 50,
         Default = math.floor((_G.Config.ReelProgressSpeed or 1) * 100),
         Callback = function(v) _G.Config.ReelProgressSpeed = v / 100 end
     })
 
     Right:AddToggle({
-        Title = "Freeze fish",
+        Title = "Freeze Fish",
         Default = _G.Config.FreezeFish or false,
         Callback = function(v) _G.Config.FreezeFish = v end
     })
 
     Right:AddToggle({
-        Title = "Freeze progress",
+        Title = "Freeze Progress",
         Default = _G.Config.FreezeReelProgress or false,
         Callback = function(v) _G.Config.FreezeReelProgress = v end
     })
@@ -268,13 +269,15 @@ if okWin then
     if not okTP then warn("[FishTP] TP tab error:", errTP) end
     local okProg, errProg = pcall(function() Progression.build(patchUI(ProgTab), FISHING_ZONES) end)
     if not okProg then warn("[FishTP] Progression tab error:", errProg) end
+    local okSet, errSet = pcall(function() FishSettings.build(SettingsTab) end)
+    if not okSet then warn("[FishTP] Settings tab error:", errSet) end
     print("[FishTP] GUI built")
 else
     warn("[FishTP] window setup error:", errWin)
 end
 
 -- ============================================================
--- Left Shift UI toggle
+-- Right Shift UI toggle
 -- ============================================================
 local UIS = game:GetService("UserInputService")
 local visible = true
@@ -301,7 +304,7 @@ pcall(function()
     UIS.InputBegan:Connect(function(input, gpe)
         if getgenv().FishTPSession ~= FISHTP_SESSION then return end
         if gpe then return end
-        if input.KeyCode == Enum.KeyCode.LeftShift then
+        if input.KeyCode == Enum.KeyCode.RightShift then
             toggleUI()
         end
     end)
@@ -312,7 +315,7 @@ task.spawn(function()
     local lastState = false
     while getgenv().FishTPSession == FISHTP_SESSION do
         task.wait(0.05)
-        local down = UIS:IsKeyDown(Enum.KeyCode.LeftShift)
+        local down = UIS:IsKeyDown(Enum.KeyCode.RightShift)
         if down and not lastState then
             toggleUI()
         end
@@ -329,6 +332,8 @@ task.spawn(function()
     if _G.Config.AutoShake and AutoShake then AutoShake(true) end
     if AutoReel and _G.Config.ReelMode ~= "Manual" then AutoReel(true) end
     if _G.Config.AutoSell and AutoSell then AutoSell(true) end
+    task.wait(0.5)
+    FishSettings.autoloadConfig()
 end)
 
-print("[FishTP] ready — LShift toggles UI")
+print("[FishTP] ready — RShift toggles UI")

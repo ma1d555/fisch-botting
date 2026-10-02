@@ -12,4 +12,5 @@ progression-10-quests.lua
 progression-11-plan.lua
 progression-12-tools.lua
 progression-13-runner-ui.lua
+hub-settings.lua
 hub-gui.lua

@@ -2,7 +2,7 @@
 -- Progression tab: works through the Fortune, Wisdom, Heaven's, Pinion's Aria and Tryhard rods by itself.
 -- Fishing tab: fishing controls from the FishOnly build.
 -- TP tab: built by the same AreaTP module the full Main_RS uses.
--- Left Shift toggles UI.
+-- Right Shift toggles UI.
 
 if getgenv().FishTPUnload then
     pcall(getgenv().FishTPUnload)
@@ -26,11 +26,11 @@ getgenv().FishTPUnload = function()
     pcall(function() if gethui then roots[#roots + 1] = gethui() end end)
     for _, root in ipairs(roots) do
         for _, gui in ipairs(root:GetChildren()) do
-            if gui.Name == "ShieldTeam || Luowis" or gui.Name == "NotificationGui" then pcall(function() gui:Destroy() end) end
+            if gui.Name == "FishTP_UI" then pcall(function() gui:Destroy() end) end
         end
     end
-    _G.Speed_Library = nil
-    pcall(function() getgenv().Speed_Library = nil end)
+    if getgenv().FishTPUI then pcall(getgenv().FishTPUI.Destroy) end
+    getgenv().FishTPUI = nil
     _G.ShieldScriptActive = nil
     getgenv().__FishTP_Loaded = nil
     print("[FishTP] unloaded")
@@ -245,57 +245,19 @@ getgenv().__var = _G.__var
 -- ============================================================
 -- GUI library
 -- ============================================================
-local Speed_Library
-local guiEncUrls = {
-    "https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/GUIENC.lua",
-    "https://raw.githubusercontent.com/KAN-FISCH/Fisch/refs/heads/main/GUIENC.lua",
-}
-pcall(function()
-    if _G.Speed_Library then
-        Speed_Library = _G.Speed_Library
-    elseif getgenv and getgenv().Speed_Library then
-        Speed_Library = getgenv().Speed_Library
-    elseif readfile and isfile and isfile("ShielDTeam/GUIENC.lua") then
-        Speed_Library = loadstring(readfile("ShielDTeam/GUIENC.lua"))()
-    elseif readfile and isfile and isfile("GUIENC.lua") then
-        Speed_Library = loadstring(readfile("GUIENC.lua"))()
-    elseif readfile and isfile and isfile("NewFish5_Source/ShielD_UILib.lua") then
-        Speed_Library = loadstring(readfile("NewFish5_Source/ShielD_UILib.lua"))()
-    end
-end)
-if not Speed_Library then
-    local localSource = readLocal("modules/GUIENC.lua")
-    local fn = localSource and loadstring(localSource, "=GUIENC")
-    local runOk, lib = false, nil
+local FishUI
+do
+    local source = readLocal("modules/FishUI.lua")
+    local fn, err = loadstring(source or "", "=FishUI")
+    local runOk, lib = false, err
     if fn then runOk, lib = pcall(fn) end
-    if runOk and lib then
-        Speed_Library = lib
-        print("[FishTP] GUIENC loaded (local)")
-    else
-        warn("[FishTP] local GUIENC failed, downloading it instead:", lib)
+    if not runOk or type(lib) ~= "table" then
+        warn("[FishTP] can't load fishtp/modules/FishUI.lua:", lib)
+        return
     end
+    FishUI = lib
 end
-if not Speed_Library then
-    for _, url in ipairs(guiEncUrls) do
-        local ok, res = pcall(game.HttpGet, game, url)
-        if ok and res and #res > 100 and not res:sub(1, 20):lower():match("<") then
-            local fn = loadstring(res)
-            if fn then
-                local runOk, lib = pcall(fn)
-                if runOk and lib then
-                    Speed_Library = lib
-                    print("[FishTP] GUIENC loaded from:", url)
-                    break
-                end
-            end
-        end
-    end
-end
-if not Speed_Library then
-    warn("[FishTP] GUIENC failed to load")
-    return
-end
-_G.Speed_Library = Speed_Library
+getgenv().FishTPUI = FishUI
 
 -- loaded after the GUI lib, same order as Main_RS
 local AreaTP = getMod("AreaTP")
