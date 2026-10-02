@@ -9,15 +9,27 @@ while not Players.LocalPlayer do task.wait(0.1) end
 if not Players.LocalPlayer.Character then Players.LocalPlayer.CharacterAdded:Wait() end
 task.wait(2)
 local DIR = "fishtp/"
-local okList, list = pcall(readfile, DIR .. "parts.txt")
-if not okList or type(list) ~= "string" then
-    warn("[FishTP] can't read fishtp/parts.txt in the workspace folder:", list)
+-- Files come from GitHub first (so a run is always the latest), the workspace copy is the fallback.
+local BASE = "https://raw.githubusercontent.com/ma1d555/fisch-botting/claude/gallant-lamport-7dusyx/fishtp/"
+local function fetch(path)
+    local ok, text = pcall(game.HttpGet, game, BASE .. path)
+    if ok and type(text) == "string" and #text > 0 and not text:sub(1, 20):lower():match("^%s*<") and text:sub(1, 4) ~= "404:" then
+        return text
+    end
+    local okFile, fileText = pcall(readfile, DIR .. path)
+    return okFile and type(fileText) == "string" and fileText or nil
+end
+getgenv().FishTPFetch = fetch
+getgenv().FishTPQueueSource = 'loadstring(game:HttpGet("' .. BASE .. 'loader.lua"))()'
+local list = fetch("parts.txt")
+if not list then
+    warn("[FishTP] can't get parts.txt from GitHub or the workspace fishtp/ folder")
     return
 end
 local chunks, index, line = {}, {}, 1
 for name in list:gmatch("[^\r\n]+") do
-    local okPart, text = pcall(readfile, DIR .. "parts/" .. name)
-    if not okPart or type(text) ~= "string" then
+    local text = fetch("parts/" .. name)
+    if not text then
         warn("[FishTP] missing part:", name)
         return
     end

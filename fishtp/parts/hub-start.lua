@@ -133,8 +133,9 @@ local ModulePaths = {
 
 local ModuleCache = {}
 
--- The hub's modules are readable copies in the executor's workspace, fishtp/modules (added by the Progression build).
+-- The hub's modules come from the repo's fishtp/modules (the loader's fetch: GitHub first, workspace copy as fallback).
 local function readLocal(file)
+    if getgenv().FishTPFetch then return getgenv().FishTPFetch(file) end
     local ok, text = pcall(readfile, "fishtp/" .. file)
     return ok and type(text) == "string" and text or nil
 end

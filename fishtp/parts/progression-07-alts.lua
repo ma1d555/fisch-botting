@@ -620,7 +620,7 @@
 	Alts.hopFile = DIR .. "/hop.json"
 	function Alts.teleport(placeId, jobId)
 		local queue = queue_on_teleport or queueonteleport or (syn and syn.queue_on_teleport)
-		if queue then pcall(queue, 'loadstring(readfile("fishtp/loader.lua"))()') end
+		if queue then pcall(queue, getgenv().FishTPQueueSource or 'loadstring(readfile("fishtp/loader.lua"))()') end
 		if state.running then
 			state.settings.resumeAfterHop = os.time()
 			saveSettings()
