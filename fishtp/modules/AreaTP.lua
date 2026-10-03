@@ -691,6 +691,18 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 		return {}
 	end)()
 
+	-- configs read and replace these (Settings tab)
+	getgenv().FishTPPositions = {
+		get = function() return savedPositions end,
+		set = function(all)
+			if type(all) ~= "table" then return end
+			for k in pairs(savedPositions) do savedPositions[k] = nil end
+			for k, v in pairs(all) do savedPositions[k] = v end
+			saveToFile()
+			if getgenv().FishTPPositionsRefresh then pcall(getgenv().FishTPPositionsRefresh) end
+		end,
+	}
+
 	local function getSavedList()
 		local names2 = { "None" }
 
@@ -747,6 +759,7 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 			end
 		end)
 	end
+	getgenv().FishTPPositionsRefresh = refreshSavedDropdown
 
 	savedSection:AddButton({
 		Title = "Save Position",

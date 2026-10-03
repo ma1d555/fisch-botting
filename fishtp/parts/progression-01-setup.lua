@@ -9,6 +9,7 @@
 -- ============================================================
 
 local Progression = {}
+Progression.statusHooks = {} -- functions(status, detail) the hub adds (webhook alerts)
 do
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local CollectionService = game:GetService("CollectionService")
@@ -92,6 +93,7 @@ do
 		state.status = status
 		state.detail = detail or ""
 		log(status .. (detail and detail ~= "" and (" - " .. detail) or ""))
+		for _, hook in ipairs(Progression.statusHooks) do pcall(hook, status, state.detail) end
 		notify()
 	end
 

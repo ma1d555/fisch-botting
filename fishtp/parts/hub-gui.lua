@@ -1,22 +1,28 @@
 -- ============================================================
 -- GUI
 -- ============================================================
-local MainWindow, FishTab, TPTab, ProgTab, SettingsTab
+local MainWindow, FishTab, TPTab, ProgTab, MiscTab, SettingsTab
 
 local function setupWindow()
     FishSettings.autoloadTheme()
     MainWindow = FishUI:CreateWindow({
         Title = "FishTP • " .. executorName,
-        Description = "[RShift] toggle",
+        Description = "[" .. tostring(FishSettings.ui.toggleKey) .. "] toggle",
         ["Tab Width"] = 110,
         SizeUi = UDim2.fromOffset(640, 440),
         Visible = true,
+        Layout = FishSettings.ui.layout,
+        OnLayout = function(layout)
+            FishSettings.ui.layout = layout
+            FishSettings.saveUI()
+        end,
     })
 
     local Grp = MainWindow:CreateGroup({"Main"})
     FishTab = Grp:CreateTab({ "Fishing" })
     TPTab   = Grp:CreateTab({ "TP", NoSave = true }) -- its dropdowns teleport when set, so configs skip them
     ProgTab = Grp:CreateTab({ "Progression" })
+    MiscTab = Grp:CreateTab({ "Misc" })
     SettingsTab = Grp:CreateTab({ "Settings", NoSave = true })
     getgenv().FishTPWindow = MainWindow
 end
@@ -269,6 +275,8 @@ if okWin then
     if not okTP then warn("[FishTP] TP tab error:", errTP) end
     local okProg, errProg = pcall(function() Progression.build(patchUI(ProgTab), FISHING_ZONES) end)
     if not okProg then warn("[FishTP] Progression tab error:", errProg) end
+    local okMisc, errMisc = pcall(function() Extras.build(MiscTab) end)
+    if not okMisc then warn("[FishTP] Misc tab error:", errMisc) end
     local okSet, errSet = pcall(function() FishSettings.build(SettingsTab) end)
     if not okSet then warn("[FishTP] Settings tab error:", errSet) end
     print("[FishTP] GUI built")
@@ -277,51 +285,17 @@ else
 end
 
 -- ============================================================
--- Right Shift UI toggle
+-- UI toggle key (rebindable in Settings > Interface)
 -- ============================================================
-local UIS = game:GetService("UserInputService")
 local visible = true
-local lastToggle = 0
 
-local function setVisible(state)
-    visible = state
-    if not MainWindow then return end
-    pcall(function() MainWindow:SetVisible(state) end)
-    pcall(function() MainWindow.Visible = state end)
-    pcall(function()
-        if MainWindow.Toggle then MainWindow:Toggle(state) end
-    end)
-end
-
--- both the event and the poll below see the same key press, so ignore repeats within 0.3s
 local function toggleUI()
-    if os.clock() - lastToggle < 0.3 then return end
-    lastToggle = os.clock()
-    setVisible(not visible)
+    visible = not visible
+    if not MainWindow then return end
+    pcall(function() MainWindow:SetVisible(visible) end)
 end
 
-pcall(function()
-    UIS.InputBegan:Connect(function(input, gpe)
-        if getgenv().FishTPSession ~= FISHTP_SESSION then return end
-        if gpe then return end
-        if input.KeyCode == Enum.KeyCode.RightShift then
-            toggleUI()
-        end
-    end)
-end)
-
--- some executors miss UIS events; poll as backup
-task.spawn(function()
-    local lastState = false
-    while getgenv().FishTPSession == FISHTP_SESSION do
-        task.wait(0.05)
-        local down = UIS:IsKeyDown(Enum.KeyCode.RightShift)
-        if down and not lastState then
-            toggleUI()
-        end
-        lastState = down
-    end
-end)
+FishSettings.bindKey("toggleKey", toggleUI)
 
 -- ============================================================
 -- boot state
@@ -336,4 +310,4 @@ task.spawn(function()
     FishSettings.autoloadConfig()
 end)
 
-print("[FishTP] ready — RShift toggles UI")
+print("[FishTP] ready — " .. tostring(FishSettings.ui.toggleKey) .. " toggles UI, " .. tostring(FishSettings.ui.panicKey) .. " is the panic key")

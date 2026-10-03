@@ -396,5 +396,19 @@
 		log("Progression tab ready")
 	end
 
+	-- What the hub's Misc tab and Settings read and call (stats panel, panic key, configs).
+	function Progression.stats()
+		return { catches = state.catches, level = G.level(), coins = tonumber(G.coins()) or 0, running = state.running }
+	end
+	function Progression.panic()
+		Progression.stop()
+		pcall(Fish.stop)
+		pcall(G.mouse, false)
+	end
+	function Progression.getSpots() return spots() end
+	function Progression.setSpots(all)
+		if type(all) == "table" then writeJson(SPOTS_FILE, all) notify() end
+	end
+
 	Progression.G = G
 end

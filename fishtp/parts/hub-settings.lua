@@ -68,6 +68,48 @@ local FishSettings = (function()
         return writeJson(AUTO_FILE, data)
     end
 
+    -- ---- interface prefs (keys, window layout, webhook): not part of configs ------------------------
+
+    local UI_FILE = "fishtp/ui.json"
+    M.ui = { toggleKey = "RightShift", panicKey = "End", webhook = "", layout = nil }
+    for key, value in pairs(readJson(UI_FILE) or {}) do M.ui[key] = value end
+    function M.saveUI()
+        ensureDir("fishtp/")
+        writeJson(UI_FILE, M.ui)
+    end
+
+    -- Calls fn when the key named by M.ui[field] goes down. The key event and a poll both watch it (some executors
+    -- miss UIS events); presses within 0.3s count once. Ignored while a keybind button is waiting for a key.
+    function M.bindKey(field, fn)
+        local UIS = game:GetService("UserInputService")
+        local last = 0
+        local function fire()
+            if os.clock() - last < 0.3 or FishUI.listening > 0 then return end
+            last = os.clock()
+            fn()
+        end
+        local function code()
+            local ok, keyCode = pcall(function() return Enum.KeyCode[M.ui[field]] end)
+            return ok and keyCode or nil
+        end
+        pcall(function()
+            UIS.InputBegan:Connect(function(input, typing)
+                if getgenv().FishTPSession ~= FISHTP_SESSION or typing then return end
+                if input.KeyCode == code() then fire() end
+            end)
+        end)
+        task.spawn(function()
+            local was = false
+            while getgenv().FishTPSession == FISHTP_SESSION do
+                task.wait(0.05)
+                local c = code()
+                local down = c ~= nil and UIS:IsKeyDown(c)
+                if down and not was and not UIS:GetFocusedTextBox() then fire() end
+                was = down
+            end
+        end)
+    end
+
     -- ---- config values ------------------------------------------------------------------------
 
     local function snapshotConfig()
@@ -78,11 +120,30 @@ local FishSettings = (function()
                 if type(v) == "boolean" or type(v) == "number" or type(v) == "string" then values[key] = v end
             end
         end
-        return { controls = values }
+        local data = { controls = values }
+        pcall(function() data.spots = Progression.getSpots() end)
+        pcall(function() data.positions = getgenv().FishTPPositions and getgenv().FishTPPositions.get() end)
+        return data
     end
 
     local function applyConfig(data)
         local count = 0
+        -- saved locations and TP positions are merged in (kept ones stay, same names are overwritten)
+        pcall(function()
+            if type(data.spots) == "table" then
+                local all = Progression.getSpots()
+                for name, pos in pairs(data.spots) do all[name] = pos end
+                Progression.setSpots(all)
+            end
+            local positions = getgenv().FishTPPositions
+            if positions and type(data.positions) == "table" then
+                local all = positions.get()
+                local merged = {}
+                for name, pos in pairs(all) do merged[name] = pos end
+                for name, pos in pairs(data.positions) do merged[name] = pos end
+                positions.set(merged)
+            end
+        end)
         for key, value in pairs(data.controls or {}) do
             local ctl = FishUI.controls[key]
             if ctl and ctl.Set then
@@ -99,6 +160,7 @@ local FishSettings = (function()
         if data then
             local n = applyConfig(data)
             print("[FishTP] autoloaded config '" .. name .. "' (" .. n .. " settings)")
+            FishUI.Notify("Config loaded", name .. " (" .. n .. " settings)")
         end
     end
 
@@ -165,7 +227,10 @@ local FishSettings = (function()
             end
             return names
         end
-        local function say(para, text) pcall(function() para:SetDesc(text) end) end
+        local function say(para, text)
+            pcall(function() para:SetDesc(text) end)
+            FishUI.Notify(para == themeStatus and "Themes" or "Configs", text, 3)
+        end
         local function refreshThemes() themeDropdown:SetOptions(themeNames()) end
         themeDropdown = savedThemes:AddDropdown({
             Title = "Theme", Options = themeNames(), Default = "Default", Save = false,
@@ -307,6 +372,57 @@ local FishSettings = (function()
             Callback = function() setAutoload("config", nil) say(cfgStatus, autoloadText()) end,
         })
         cfgSec:AddButton({ Title = "Refresh", Callback = refreshCfgs })
+
+        -- share a config as text: Export copies it, Import applies pasted text (and saves it when Name is filled in)
+        local importText = ""
+        cfgSec:AddButton({
+            Title = "Export",
+            Callback = function()
+                local ok, text = pcall(function() return HttpService:JSONEncode(snapshotConfig()) end)
+                if ok and setclipboard then
+                    setclipboard(text)
+                    say(cfgStatus, "Copied the current settings")
+                else
+                    say(cfgStatus, "Can't copy here")
+                end
+            end,
+        })
+        cfgSec:AddInput({ Title = "Paste", Default = "", Callback = function(v) importText = v end })
+        cfgSec:AddButton({
+            Title = "Import",
+            Callback = function()
+                local ok, data = pcall(function() return HttpService:JSONDecode(importText) end)
+                if not ok or type(data) ~= "table" or type(data.controls) ~= "table" then return say(cfgStatus, "That isn't a config") end
+                local n = applyConfig(data)
+                local name = cleanName(cfgName)
+                if name then
+                    ensureDir(CONFIG_DIR)
+                    writeJson(CONFIG_DIR .. name .. ".json", data)
+                    refreshCfgs()
+                    cfgDropdown:Set(name, true)
+                    selectedCfg = name
+                end
+                say(cfgStatus, "Imported " .. n .. " settings" .. (name and (" as " .. name) or ""))
+            end,
+        })
+
+        -- interface: keys and window
+        local ifaceSec = tab:AddSection("Interface", true, "Right")
+        ifaceSec:AddKeybind({
+            Title = "Toggle Key", Default = M.ui.toggleKey,
+            Callback = function(key) M.ui.toggleKey = key M.saveUI() end,
+        })
+        ifaceSec:AddKeybind({
+            Title = "Panic Key", Default = M.ui.panicKey,
+            Callback = function(key) M.ui.panicKey = key M.saveUI() end,
+        })
+        ifaceSec:AddButton({
+            Title = "Reset Window",
+            Callback = function()
+                local win = getgenv().FishTPWindow
+                if win and win.ResetLayout then win:ResetLayout() end
+            end,
+        })
     end
 
     return M

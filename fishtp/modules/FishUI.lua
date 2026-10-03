@@ -173,6 +173,11 @@ end
 local Section = {}
 Section.__index = Section
 
+-- every control's top frame + title, so a tab's search box can hide what doesn't match
+local function trackEl(section, frame, title)
+	section.elements[#section.elements + 1] = { frame = frame, title = tostring(title or ""):lower() }
+end
+
 local function register(section, ctl, title, save)
 	if save == false then return end
 	if section.tab.noSave then return end
@@ -193,6 +198,7 @@ function Section:AddToggle(o)
 	corner(knob, 6)
 	bind(knob, "BackgroundColor3", "text")
 	local hit = make("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "" }, row)
+	trackEl(self, row, o.Title)
 
 	local ctl = { kind = "toggle" }
 	local function render()
@@ -220,6 +226,7 @@ function Section:AddButton(o)
 	bind(btn, "BackgroundColor3", "elem")
 	bind(btn, "TextColor3", "text")
 	corner(btn, 6)
+	trackEl(self, btn, o.Title)
 	btn.MouseEnter:Connect(function() tween(btn, { BackgroundColor3 = roles.hover() }) end)
 	btn.MouseLeave:Connect(function() tween(btn, { BackgroundColor3 = roles.elem() }) end)
 	btn.MouseButton1Down:Connect(function() tween(btn, { BackgroundColor3 = roles.accent() }, 0.06) end)
@@ -237,6 +244,7 @@ function Section:AddSlider(o)
 	local inc = o.Increment or 1
 	local value = math.clamp(o.Default or min, min, max)
 	local row = newRow(self.body, 42)
+	trackEl(self, row, o.Title)
 	local title = label(row, o.Title or "", 13, "text", { Size = UDim2.new(1, -70, 0, 18), Position = UDim2.fromOffset(10, 4), TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
 	local num = label(row, "", 13, "subtext", { Size = UDim2.fromOffset(60, 18), Position = UDim2.new(1, -70, 0, 4), TextXAlignment = Enum.TextXAlignment.Right })
 	local bar = make("Frame", { Size = UDim2.new(1, -20, 0, 6), Position = UDim2.fromOffset(10, 29), BorderSizePixel = 0 }, row)
@@ -292,6 +300,7 @@ end
 
 function Section:AddInput(o)
 	local row = newRow(self.body, 30)
+	trackEl(self, row, o.Title)
 	label(row, o.Title or "", 13, "text", { Size = UDim2.new(0.5, -10, 1, 0), Position = UDim2.fromOffset(10, 0), TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
 	local box = make("TextBox", {
 		Size = UDim2.new(0.5, -14, 0, 22), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), BorderSizePixel = 0,
@@ -322,6 +331,7 @@ function Section:AddParagraph(o)
 	corner(row, 6)
 	pad(row, 10, 7, 10, 7)
 	list(row, 2)
+	trackEl(self, row, (o.Title or "") .. " " .. (o.Content or ""))
 	local title = label(row, o.Title or "", 13, "accent", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Font = Enum.Font.GothamBold, LayoutOrder = 1 })
 	local body = label(row, o.Content or "", 12, "subtext", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Font = Enum.Font.Gotham, LayoutOrder = 2 })
 	local ctl = {}
@@ -332,6 +342,45 @@ function Section:AddParagraph(o)
 		if t.Title then title.Text = tostring(t.Title) end
 		if t.Content then body.Text = tostring(t.Content) end
 	end
+	return ctl
+end
+
+-- A key picker: click it, press a key (Escape cancels). Value is the KeyCode's name, e.g. "RightShift".
+Library.listening = 0
+function Section:AddKeybind(o)
+	local value = tostring(o.Default or "None")
+	local row = newRow(self.body, 30)
+	trackEl(self, row, o.Title)
+	label(row, o.Title or "", 13, "text", { Size = UDim2.new(1, -110, 1, 0), Position = UDim2.fromOffset(10, 0), TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
+	local btn = make("TextButton", { Size = UDim2.fromOffset(92, 22), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), BorderSizePixel = 0, AutoButtonColor = false, TextSize = 12, Font = Enum.Font.GothamMedium, Text = value }, row)
+	bind(btn, "BackgroundColor3", "hover")
+	bind(btn, "TextColor3", "accent")
+	corner(btn, 5)
+	local listening = false
+	local ctl = { kind = "keybind" }
+	function ctl:Get() return value end
+	function ctl:Set(v, silent)
+		v = tostring(v or "None")
+		if v ~= "None" and not pcall(function() return Enum.KeyCode[v] end) then return end
+		value = v
+		btn.Text = value
+		if not silent and o.Callback then task.spawn(o.Callback, value) end
+	end
+	ctl.SetValue = ctl.Set
+	btn.MouseButton1Click:Connect(function()
+		if listening then return end
+		listening = true
+		Library.listening = Library.listening + 1
+		btn.Text = "press a key"
+	end)
+	conn(UIS.InputBegan, function(input)
+		if not listening or input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+		listening = false
+		task.delay(0.2, function() Library.listening = math.max(0, Library.listening - 1) end)
+		if input.KeyCode == Enum.KeyCode.Escape then btn.Text = value return end
+		ctl:Set(input.KeyCode.Name)
+	end)
+	if o.Save == true then register(self, ctl, o.Title or "", true) end
 	return ctl
 end
 
@@ -353,8 +402,18 @@ function Section:AddDropdown(o)
 	local current = label(head, value, 12, "accent", { Size = UDim2.new(0.5, -28, 1, 0), Position = UDim2.new(0.5, 0, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
 	local arrow = label(head, "v", 12, "subtext", { Size = UDim2.fromOffset(16, 30), Position = UDim2.new(1, -20, 0, 0), TextXAlignment = Enum.TextXAlignment.Center })
 
+	trackEl(self, holder, o.Title)
+	local search = make("TextBox", {
+		Size = UDim2.new(1, 0, 0, 24), BorderSizePixel = 0, Visible = false, LayoutOrder = 2, Text = "", PlaceholderText = "Search",
+		TextSize = 12, Font = Enum.Font.Gotham, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+	bind(search, "BackgroundColor3", "panel")
+	bind(search, "TextColor3", "text")
+	bind(search, "PlaceholderColor3", "subtext")
+	corner(search, 6)
+	pad(search, 8, 0, 8, 0)
 	local scroll = make("ScrollingFrame", {
-		Size = UDim2.new(1, 0, 0, 0), BorderSizePixel = 0, Visible = false, LayoutOrder = 2, ScrollBarThickness = 3,
+		Size = UDim2.new(1, 0, 0, 0), BorderSizePixel = 0, Visible = false, LayoutOrder = 3, ScrollBarThickness = 3,
 		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y,
 	}, holder)
 	bind(scroll, "BackgroundColor3", "panel")
@@ -368,15 +427,29 @@ function Section:AddDropdown(o)
 		current.Text = value
 		if not silent and o.Callback then task.spawn(o.Callback, value) end
 	end
+	local buttons = {}
+	local function applyFilter()
+		local q = search.Text:lower()
+		local shown = 0
+		for _, b in ipairs(buttons) do
+			local match = q == "" or b.Text:lower():find(q, 1, true) ~= nil
+			b.Visible = match
+			if match then shown = shown + 1 end
+		end
+		scroll.Size = UDim2.new(1, 0, 0, math.min(math.max(shown, 1) * 24 + 8, 148))
+	end
 	local function close()
 		open = false
 		scroll.Visible = false
+		search.Visible = false
 		arrow.Text = "v"
 	end
 	local function rebuild()
 		for _, c in ipairs(scroll:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+		buttons = {}
 		for i, opt in ipairs(options) do
 			local b = make("TextButton", { Size = UDim2.new(1, 0, 0, 22), BorderSizePixel = 0, AutoButtonColor = false, Text = opt, TextSize = 12, Font = Enum.Font.Gotham, LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd }, scroll)
+			buttons[#buttons + 1] = b
 			bind(b, "BackgroundColor3", "panel")
 			bind(b, "TextColor3", opt == value and "accent" or "text")
 			pad(b, 8, 0, 8, 0)
@@ -390,13 +463,15 @@ function Section:AddDropdown(o)
 				close()
 			end)
 		end
-		scroll.Size = UDim2.new(1, 0, 0, math.min(#options * 24 + 8, 148))
+		applyFilter()
 	end
 	rebuild()
+	search:GetPropertyChangedSignal("Text"):Connect(applyFilter)
 
 	head.MouseButton1Click:Connect(function()
 		open = not open
 		scroll.Visible = open
+		search.Visible = open and #options > 8
 		arrow.Text = open and "^" or "v"
 	end)
 
@@ -441,11 +516,36 @@ function Tab:AddSection(name, open, side)
 	local chevron = label(head, open == false and "+" or "-", 14, "subtext", { Size = UDim2.fromOffset(20, 20), Position = UDim2.new(1, -20, 0, 0), TextXAlignment = Enum.TextXAlignment.Center })
 	local body = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Visible = open ~= false }, frame)
 	list(body, 5)
+	local sec = setmetatable({ tab = self, name = name, body = body, frame = frame, elements = {}, expanded = open ~= false, query = "" }, Section)
+	function sec:Refresh()
+		local searching = self.query ~= ""
+		body.Visible = self.expanded or (searching and self.matches == true)
+		chevron.Text = self.expanded and "-" or "+"
+	end
 	head.MouseButton1Click:Connect(function()
-		body.Visible = not body.Visible
-		chevron.Text = body.Visible and "-" or "+"
+		sec.expanded = not sec.expanded
+		sec:Refresh()
 	end)
-	return setmetatable({ tab = self, name = name, body = body }, Section)
+	self.sections[#self.sections + 1] = sec
+	return sec
+end
+
+-- Hides what doesn't match the search text; sections with a match open up while searching.
+function Tab:Filter(text)
+	local q = tostring(text or ""):lower()
+	for _, sec in ipairs(self.sections) do
+		local any = false
+		local nameMatch = q ~= "" and sec.name:lower():find(q, 1, true) ~= nil
+		for _, el in ipairs(sec.elements) do
+			local match = q == "" or nameMatch or el.title:find(q, 1, true) ~= nil
+			el.frame.Visible = match
+			if match then any = true end
+		end
+		sec.query = q
+		sec.matches = any
+		sec.frame.Visible = q == "" or any or nameMatch
+		sec:Refresh()
+	end
 end
 
 local Group = {}
@@ -458,8 +558,17 @@ function Group:CreateTab(args)
 	bind(btn, "BackgroundColor3", "panel")
 	bind(btn, "TextColor3", "subtext")
 	corner(btn, 6)
+	local searchBox = make("TextBox", {
+		Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(8, 6), BorderSizePixel = 0, Visible = false, Text = "", PlaceholderText = "Search " .. name,
+		TextSize = 12, Font = Enum.Font.Gotham, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
+	}, win.content)
+	bind(searchBox, "BackgroundColor3", "panel")
+	bind(searchBox, "TextColor3", "text")
+	bind(searchBox, "PlaceholderColor3", "subtext")
+	corner(searchBox, 6)
+	pad(searchBox, 8, 0, 8, 0)
 	local page = make("ScrollingFrame", {
-		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, ScrollBarThickness = 4,
+		Size = UDim2.new(1, 0, 1, -34), Position = UDim2.fromOffset(0, 34), BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, ScrollBarThickness = 4,
 		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y,
 	}, win.content)
 	bind(page, "ScrollBarImageColor3", "accent")
@@ -469,7 +578,8 @@ function Group:CreateTab(args)
 		list(c, 8)
 		return c
 	end
-	local tab = setmetatable({ name = name, left = column(0), right = column(0.5), page = page, button = btn, noSave = args.NoSave == true }, Tab)
+	local tab = setmetatable({ name = name, left = column(0), right = column(0.5), page = page, button = btn, search = searchBox, sections = {}, noSave = args.NoSave == true }, Tab)
+	searchBox:GetPropertyChangedSignal("Text"):Connect(function() tab:Filter(searchBox.Text) end)
 	btn.MouseButton1Click:Connect(function() win:SelectTab(tab) end)
 	win.tabs[#win.tabs + 1] = tab
 	if not win.current then win:SelectTab(tab) end
@@ -482,6 +592,7 @@ Window.__index = Window
 function Window:SelectTab(tab)
 	for _, t in ipairs(self.tabs) do
 		t.page.Visible = t == tab
+		t.search.Visible = t == tab
 		bind(t.button, "TextColor3", t == tab and "text" or "subtext")
 		bind(t.button, "BackgroundColor3", t == tab and "elem" or "panel")
 	end
@@ -512,7 +623,16 @@ function Library:CreateWindow(o)
 	local size = o.SizeUi or UDim2.fromOffset(640, 440)
 	local sidebar = o["Tab Width"] or 110
 	local gui = mountGui()
-	local frame = make("Frame", { Size = size, Position = UDim2.new(0.5, -size.X.Offset / 2, 0.5, -size.Y.Offset / 2), BorderSizePixel = 0, ClipsDescendants = true }, gui)
+	Library.Gui = gui
+	local layout = o.Layout
+	local position = UDim2.new(0.5, -size.X.Offset / 2, 0.5, -size.Y.Offset / 2)
+	if type(layout) == "table" and tonumber(layout.w) and tonumber(layout.h) then
+		size = UDim2.fromOffset(math.clamp(layout.w, 480, 1100), math.clamp(layout.h, 320, 800))
+		position = UDim2.new(tonumber(layout.xs) or 0, tonumber(layout.xo) or 0, tonumber(layout.ys) or 0, tonumber(layout.yo) or 0)
+	end
+	local frame = make("Frame", { Size = size, Position = position, BorderSizePixel = 0, ClipsDescendants = true }, gui)
+	local defaultSize, defaultPosition = o.SizeUi or UDim2.fromOffset(640, 440), nil
+	defaultPosition = UDim2.new(0.5, -defaultSize.X.Offset / 2, 0.5, -defaultSize.Y.Offset / 2)
 	bind(frame, "BackgroundColor3", "bg")
 	corner(frame, 10)
 	make("UIStroke", { Thickness = 1, Transparency = 0.6 }, frame)
@@ -538,6 +658,40 @@ function Library:CreateWindow(o)
 	local win = setmetatable({ gui = gui, frame = frame, tabList = tabList, content = content, tabs = {}, visible = o.Visible ~= false }, Window)
 	frame.Visible = win.visible
 
+	local function saveLayout()
+		if not o.OnLayout then return end
+		local p, sz = frame.Position, frame.Size
+		pcall(o.OnLayout, { xs = p.X.Scale, xo = p.X.Offset, ys = p.Y.Scale, yo = p.Y.Offset, w = sz.X.Offset, h = sz.Y.Offset })
+	end
+	function win:ResetLayout()
+		frame.Size, frame.Position = defaultSize, defaultPosition
+		saveLayout()
+	end
+
+	-- corner grip: drag to resize
+	local grip = make("TextButton", { Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1, Text = "", ZIndex = 5 }, frame)
+	local gripDot = make("Frame", { Size = UDim2.fromOffset(8, 8), AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), BorderSizePixel = 0, ZIndex = 5 }, grip)
+	bind(gripDot, "BackgroundColor3", "accent")
+	corner(gripDot, 2)
+	local resizing, resizeStart, startSize
+	grip.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			resizing, resizeStart, startSize = true, input.Position, frame.Size
+		end
+	end)
+	conn(UIS.InputChanged, function(input)
+		if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local d = input.Position - resizeStart
+			frame.Size = UDim2.fromOffset(math.clamp(startSize.X.Offset + d.X, 480, 1100), math.clamp(startSize.Y.Offset + d.Y, 320, 800))
+		end
+	end)
+	conn(UIS.InputEnded, function(input)
+		if resizing and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			resizing = false
+			saveLayout()
+		end
+	end)
+
 	-- drag from the title bar (mouse or touch)
 	local dragging, dragStart, startPos
 	top.InputBegan:Connect(function(input)
@@ -552,11 +706,37 @@ function Library:CreateWindow(o)
 		end
 	end)
 	conn(UIS.InputEnded, function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			dragging = false
+			saveLayout()
+		end
 	end)
 
 	if not rainbowConn then startRainbow() end
 	return win
+end
+
+-- Small pop-ups in the top right; they work while the window is hidden.
+local toastHolder
+function Library.Notify(title, content, duration)
+	local gui = Library.Gui
+	if not gui or not gui.Parent then print("[FishTP] " .. tostring(title) .. ": " .. tostring(content or "")) return end
+	if not toastHolder or not toastHolder.Parent then
+		toastHolder = make("Frame", { Size = UDim2.new(0, 260, 1, -28), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 14), BackgroundTransparency = 1, ZIndex = 10 }, gui)
+		make("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Top }, toastHolder)
+	end
+	local toast = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, ZIndex = 10, LayoutOrder = math.floor(os.clock() * 100) }, toastHolder)
+	bind(toast, "BackgroundColor3", "panel")
+	corner(toast, 8)
+	pad(toast, 10, 7, 10, 7)
+	list(toast, 2)
+	make("UIStroke", { Thickness = 1, Transparency = 0.5 }, toast)
+	bind(toast:FindFirstChildOfClass("UIStroke"), "Color", "accent")
+	label(toast, tostring(title or ""), 13, "accent", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Font = Enum.Font.GothamBold, LayoutOrder = 1, ZIndex = 10 })
+	if content and content ~= "" then
+		label(toast, tostring(content), 12, "subtext", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Font = Enum.Font.Gotham, LayoutOrder = 2, ZIndex = 10 })
+	end
+	task.delay(duration or 4, function() if toast.Parent then toast:Destroy() end end)
 end
 
 function Library.Destroy()
