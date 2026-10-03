@@ -36,6 +36,7 @@ local roles = {
 	hover   = function() return shade(theme.Background, 0.18) end,
 	accent  = function() return theme.Accent end,
 	text    = function() return theme.Text end,
+	ontop   = function() return (theme.Accent.R * 0.299 + theme.Accent.G * 0.587 + theme.Accent.B * 0.114) > 0.62 and Color3.new(0, 0, 0) or Color3.new(1, 1, 1) end,
 	subtext = function() return theme.Text:Lerp(theme.Background, 0.45) end,
 }
 
@@ -102,7 +103,7 @@ local function startRainbow()
 		if not theme.Rainbow then return end
 		theme.Accent = Color3.fromHSV((os.clock() * 0.2) % 1, 0.75, 1)
 		for _, entry in ipairs(themed) do
-			if entry[3] == "accent" then paint(entry) end
+			if entry[3] == "accent" or entry[3] == "ontop" then paint(entry) end
 		end
 	end)
 end
@@ -117,6 +118,12 @@ local function make(class, props, parent)
 end
 
 local function corner(inst, r) make("UICorner", { CornerRadius = UDim.new(0, r or 6) }, inst) end
+-- a thin border (UIStroke in Border mode: on a TextButton the default would outline the text instead)
+local function outline(inst, role, transparency)
+	local stroke = make("UIStroke", { Thickness = 1, Transparency = transparency or 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, inst)
+	bind(stroke, "Color", role)
+	return stroke
+end
 local function pad(inst, l, t, r, b)
 	make("UIPadding", { PaddingLeft = UDim.new(0, l), PaddingTop = UDim.new(0, t or l), PaddingRight = UDim.new(0, r or l), PaddingBottom = UDim.new(0, b or t or l) }, inst)
 end
@@ -226,6 +233,7 @@ function Section:AddButton(o)
 	bind(btn, "BackgroundColor3", "elem")
 	bind(btn, "TextColor3", "text")
 	corner(btn, 6)
+	outline(btn, "hover", 0.2)
 	trackEl(self, btn, o.Title)
 	btn.MouseEnter:Connect(function() tween(btn, { BackgroundColor3 = roles.hover() }) end)
 	btn.MouseLeave:Connect(function() tween(btn, { BackgroundColor3 = roles.elem() }) end)
@@ -555,9 +563,10 @@ function Group:CreateTab(args)
 	local name = args[1] or args.Name or "Tab"
 	local win = self.window
 	local btn = make("TextButton", { Size = UDim2.new(1, 0, 0, 28), BorderSizePixel = 0, AutoButtonColor = false, Text = name, TextSize = 13, Font = Enum.Font.GothamMedium, LayoutOrder = #win.tabList:GetChildren() }, win.tabList)
-	bind(btn, "BackgroundColor3", "panel")
+	bind(btn, "BackgroundColor3", "elem")
 	bind(btn, "TextColor3", "subtext")
 	corner(btn, 6)
+	local btnStroke = outline(btn, "hover", 0)
 	local searchBox = make("TextBox", {
 		Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(8, 6), BorderSizePixel = 0, Visible = false, Text = "", PlaceholderText = "Search " .. name,
 		TextSize = 12, Font = Enum.Font.Gotham, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
@@ -578,7 +587,7 @@ function Group:CreateTab(args)
 		list(c, 8)
 		return c
 	end
-	local tab = setmetatable({ name = name, left = column(0), right = column(0.5), page = page, button = btn, search = searchBox, sections = {}, noSave = args.NoSave == true }, Tab)
+	local tab = setmetatable({ name = name, left = column(0), right = column(0.5), page = page, button = btn, stroke = btnStroke, search = searchBox, sections = {}, noSave = args.NoSave == true }, Tab)
 	searchBox:GetPropertyChangedSignal("Text"):Connect(function() tab:Filter(searchBox.Text) end)
 	btn.MouseButton1Click:Connect(function() win:SelectTab(tab) end)
 	win.tabs[#win.tabs + 1] = tab
@@ -593,8 +602,10 @@ function Window:SelectTab(tab)
 	for _, t in ipairs(self.tabs) do
 		t.page.Visible = t == tab
 		t.search.Visible = t == tab
-		bind(t.button, "TextColor3", t == tab and "text" or "subtext")
-		bind(t.button, "BackgroundColor3", t == tab and "elem" or "panel")
+		-- every tab is a framed button; the open one is filled with the accent
+		bind(t.button, "TextColor3", t == tab and "ontop" or "subtext")
+		bind(t.button, "BackgroundColor3", t == tab and "accent" or "elem")
+		bind(t.stroke, "Color", t == tab and "accent" or "hover")
 	end
 	self.current = tab
 end
@@ -638,8 +649,13 @@ function Library:CreateWindow(o)
 	make("UIStroke", { Thickness = 1, Transparency = 0.6 }, frame)
 	bind(frame:FindFirstChildOfClass("UIStroke"), "Color", "accent")
 
+	-- ClipsDescendants doesn't follow UICorner, so the title bar and sidebar are rounded themselves; the fillers
+	-- (behind them) fill in the corners that must stay square.
 	local top = make("Frame", { Size = UDim2.new(1, 0, 0, 34), BorderSizePixel = 0 }, frame)
 	bind(top, "BackgroundColor3", "panel")
+	corner(top, 10)
+	local topFill = make("Frame", { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 16), BorderSizePixel = 0, ZIndex = 0 }, frame)
+	bind(topFill, "BackgroundColor3", "panel")
 	local accentLine = make("Frame", { Size = UDim2.new(1, 0, 0, 2), Position = UDim2.new(0, 0, 1, -2), BorderSizePixel = 0 }, top)
 	bind(accentLine, "BackgroundColor3", "accent")
 	label(top, o.Title or "FishTP", 14, "text", { Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(12, 0), Font = Enum.Font.GothamBold, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
@@ -650,6 +666,11 @@ function Library:CreateWindow(o)
 		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
 	}, frame)
 	bind(tabList, "BackgroundColor3", "panel")
+	corner(tabList, 10)
+	local sideTopFill = make("Frame", { Size = UDim2.new(0, sidebar, 0, 14), Position = UDim2.fromOffset(0, 34), BorderSizePixel = 0, ZIndex = 0 }, frame)
+	bind(sideTopFill, "BackgroundColor3", "panel")
+	local sideRightFill = make("Frame", { Size = UDim2.new(0, 14, 1, -34), Position = UDim2.fromOffset(sidebar - 14, 34), BorderSizePixel = 0, ZIndex = 0 }, frame)
+	bind(sideRightFill, "BackgroundColor3", "panel")
 	pad(tabList, 6, 8, 6, 6)
 	list(tabList, 4)
 
@@ -716,16 +737,21 @@ function Library:CreateWindow(o)
 	return win
 end
 
--- Small pop-ups in the top right; they work while the window is hidden.
+-- Small pop-ups in the top right: they slide in, wait, slide out. They work while the window is hidden.
+-- Library.ToastsEnabled = false turns them all off (the hub's Misc tab has the switch).
+Library.ToastsEnabled = true
 local toastHolder
 function Library.Notify(title, content, duration)
+	if not Library.ToastsEnabled then return end
 	local gui = Library.Gui
 	if not gui or not gui.Parent then print("[FishTP] " .. tostring(title) .. ": " .. tostring(content or "")) return end
 	if not toastHolder or not toastHolder.Parent then
 		toastHolder = make("Frame", { Size = UDim2.new(0, 260, 1, -28), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 14), BackgroundTransparency = 1, ZIndex = 10 }, gui)
 		make("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Top }, toastHolder)
 	end
-	local toast = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, ZIndex = 10, LayoutOrder = math.floor(os.clock() * 100) }, toastHolder)
+	-- the slot keeps its place in the list while the toast inside it slides
+	local slot = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 10, LayoutOrder = math.floor(os.clock() * 100) }, toastHolder)
+	local toast = make("Frame", { Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(1.2, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, ZIndex = 10 }, slot)
 	bind(toast, "BackgroundColor3", "panel")
 	corner(toast, 8)
 	pad(toast, 10, 7, 10, 7)
@@ -736,7 +762,16 @@ function Library.Notify(title, content, duration)
 	if content and content ~= "" then
 		label(toast, tostring(content), 12, "subtext", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Font = Enum.Font.Gotham, LayoutOrder = 2, ZIndex = 10 })
 	end
-	task.delay(duration or 4, function() if toast.Parent then toast:Destroy() end end)
+	pcall(function()
+		TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0, 0, 0, 0) }):Play()
+	end)
+	task.delay(duration or 4, function()
+		if not toast.Parent then return end
+		pcall(function()
+			TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.new(1.2, 0, 0, 0) }):Play()
+		end)
+		task.delay(0.3, function() if slot.Parent then slot:Destroy() end end)
+	end)
 end
 
 function Library.Destroy()
