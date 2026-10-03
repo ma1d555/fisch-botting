@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- AutoCast (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- AutoCast (Nova module), deobfuscated and cleaned.
 -- Casting loop on Heartbeat: IDLE -> cast via RF/FishingRod/Cast:InvokeServer(power, perfect) -> CASTING until the
 -- bobber appears -> WAITING. With InstantCast it PivotTo()s the bobber onto the nearest water (Carrot Secret pool,
 -- terrain-water raycasts ahead, then a ring search). Drops a bobber stuck for 4s via events.drop_bobber.
@@ -208,7 +208,7 @@ local function resetState(clearCastTime)
 end
 _G.ResetAutoCastState = resetState
 task.spawn(function()
-	while getgenv().FishTPSession == FISHTP_SESSION do
+	while getgenv().NovaSession == NOVA_SESSION do
 		task.wait(1)
 
 		if _G.Config and _G.Config.AutoCast and not _G.IsReeling then
@@ -274,7 +274,7 @@ task.spawn(function()
 	end
 
 	heartbeatConnection = RunService.Heartbeat:Connect(function()
-		if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+		if getgenv().NovaSession ~= NOVA_SESSION then return end
 		local timestamp = tick()
 
 		if timestamp - lastTick < TICK_INTERVAL then

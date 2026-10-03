@@ -1,5 +1,5 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
+local NOVA_SESSION = getgenv().NovaSession
 local ConfigModule = {}
 
 ConfigModule.ConfigFolder = "ExclusiveConfigs/"

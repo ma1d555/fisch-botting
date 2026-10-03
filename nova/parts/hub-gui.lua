@@ -1,23 +1,30 @@
 -- ============================================================
 -- GUI
 -- ============================================================
-local MainWindow, FishTab, TPTab, ProgTab
+local MainWindow, FishTab, TPTab, ProgTab, MiscTab, SettingsTab
 
 local function setupWindow()
-    MainWindow = Speed_Library:CreateWindow({
-        Title = "ShieldTeam || Fishing + TP || " .. executorName,
-        Description = "Fisch • Fishing + Teleport • [LShift] toggle",
+    NovaSettings.autoloadTheme()
+    MainWindow = NovaUI:CreateWindow({
+        Title = "Nova • " .. executorName,
+        Description = "[" .. tostring(NovaSettings.ui.toggleKey) .. "] toggle",
         ["Tab Width"] = 110,
-        SizeUi = UDim2.fromOffset(580, 420),
-        Visible = false,
+        SizeUi = UDim2.fromOffset(640, 440),
+        Visible = true,
+        Layout = NovaSettings.ui.layout,
+        OnLayout = function(layout)
+            NovaSettings.ui.layout = layout
+            NovaSettings.saveUI()
+        end,
     })
-    if MainWindow and MainWindow.SetVisible then MainWindow:SetVisible(true) end
 
-    local Grp = MainWindow:CreateGroup({"Main", "rbxassetid://7733960981"})
-    FishTab = Grp:CreateTab({ "Fishing", "", "Auto Fishing & Cast" })
-    TPTab   = Grp:CreateTab({ "TP",      "", "Area & Teleport" })
-    ProgTab = Grp:CreateTab({ "Progression", "", "Rod questlines" })
-    getgenv().FishTPWindow = MainWindow
+    local Grp = MainWindow:CreateGroup({"Main"})
+    FishTab = Grp:CreateTab({ "Fishing" })
+    TPTab   = Grp:CreateTab({ "TP", NoSave = true }) -- its dropdowns teleport when set, so configs skip them
+    ProgTab = Grp:CreateTab({ "Progression" })
+    MiscTab = Grp:CreateTab({ "Misc" })
+    SettingsTab = Grp:CreateTab({ "Settings", NoSave = true })
+    getgenv().NovaWindow = MainWindow
 end
 
 local function buildFishingTab()
@@ -38,7 +45,7 @@ local function buildFishingTab()
     })
 
     Left:AddToggle({
-        Title = "Instant Bobber / Auto Cast",
+        Title = "Auto Cast",
         Default = _G.Config.AutoCast or false,
         Callback = function(v)
             _G.Config.AutoCast = v
@@ -48,7 +55,7 @@ local function buildFishingTab()
     })
 
     Left:AddToggle({
-        Title = "Legit Cast (real click, let go at full power)",
+        Title = "Legit Cast",
         Default = _G.Config.LegitCast or false,
         Callback = function(v)
             _G.Config.LegitCast = v
@@ -94,50 +101,50 @@ local function buildFishingTab()
     })
 
     Left:AddSlider({
-        Title = "Auto Sell Interval (min)",
+        Title = "Sell Interval (min)",
         Min = 2, Max = 10,
         Default = _G.Config.AutoSellInterval or 3,
         Callback = function(v) _G.Config.AutoSellInterval = v end
     })
 
     Left:AddButton({
-        Title = "Unload script (run again without rejoining)",
+        Title = "Unload",
         Callback = function()
-            if getgenv().FishTPUnload then getgenv().FishTPUnload() end
+            if getgenv().NovaUnload then getgenv().NovaUnload() end
         end
     })
 
     Left:AddButton({
-        Title = "Server hop",
+        Title = "Server Hop",
         Callback = function() task.spawn(Progression.serverHop, false) end
     })
 
     local fishJobId = ""
     if Left.AddInput then
         Left:AddInput({
-            Title = "Job ID to join",
-            Content = "the server's job ID",
+            Title = "Job ID",
+            Placeholder = "Job ID",
             Default = "",
             Callback = function(v) fishJobId = tostring(v or "") end
         })
         Left:AddButton({
-            Title = "Join that server",
+            Title = "Join Server",
             Callback = function() task.spawn(Progression.joinServer, fishJobId, false) end
         })
     end
 
     Left:AddButton({
-        Title = "Collect meteors",
+        Title = "Collect Meteors",
         Callback = function() task.spawn(Progression.collectSky, "meteor") end
     })
 
     Left:AddButton({
-        Title = "Collect cosmic craters",
+        Title = "Collect Craters",
         Callback = function() task.spawn(Progression.collectStarCraters) end
     })
 
     Left:AddButton({
-        Title = "Copy this server's job ID",
+        Title = "Copy Job ID",
         Callback = function()
             if setclipboard then setclipboard(game.JobId) end
         end
@@ -161,34 +168,34 @@ local function buildFishingTab()
     })
 
     Right:AddSlider({
-        Title = "Reel delay (ms)",
+        Title = "Reel Delay (ms)",
         Min = 0, Max = 300, Increment = 10,
         Default = _G.Config.InstantReelDelayMs or 280,
         Callback = function(v) _G.Config.InstantReelDelayMs = v end
     })
 
     Right:AddSlider({
-        Title = "Bar size (% of bar, 0 = rod's)",
+        Title = "Bar Size %",
         Min = 0, Max = 100, Increment = 5,
         Default = _G.Config.BarSizePercent or 0,
         Callback = function(v) _G.Config.BarSizePercent = v end
     })
 
     Right:AddSlider({
-        Title = "Progress speed (%)",
+        Title = "Progress Speed %",
         Min = 100, Max = 4000, Increment = 50,
         Default = math.floor((_G.Config.ReelProgressSpeed or 1) * 100),
         Callback = function(v) _G.Config.ReelProgressSpeed = v / 100 end
     })
 
     Right:AddToggle({
-        Title = "Freeze fish",
+        Title = "Freeze Fish",
         Default = _G.Config.FreezeFish or false,
         Callback = function(v) _G.Config.FreezeFish = v end
     })
 
     Right:AddToggle({
-        Title = "Freeze progress",
+        Title = "Freeze Progress",
         Default = _G.Config.FreezeReelProgress or false,
         Callback = function(v) _G.Config.FreezeReelProgress = v end
     })
@@ -250,10 +257,10 @@ local function buildTPTab()
             AreaTP(TPMain, TPSavePos, TPNPC, TPBalloon)
         end)
         if not okTP then
-            warn("[FishTP] AreaTP init error:", errTP)
+            warn("[Nova] AreaTP init error:", errTP)
             tpNotice("The teleport module crashed while building buttons:\n" .. tostring(errTP))
         end
-        print("[FishTP] ground snap attached to " .. snapWrapped .. " TP controls")
+        print("[Nova] ground snap attached to " .. snapWrapped .. " TP controls")
     else
         tpNotice("The teleport module (AreaTP) failed to download from GitHub. Rejoin and run the script again.")
     end
@@ -263,62 +270,32 @@ end
 local okWin, errWin = pcall(setupWindow)
 if okWin then
     local okFish, errFish = pcall(buildFishingTab)
-    if not okFish then warn("[FishTP] Fishing tab error:", errFish) end
+    if not okFish then warn("[Nova] Fishing tab error:", errFish) end
     local okTP, errTP = pcall(buildTPTab)
-    if not okTP then warn("[FishTP] TP tab error:", errTP) end
+    if not okTP then warn("[Nova] TP tab error:", errTP) end
     local okProg, errProg = pcall(function() Progression.build(patchUI(ProgTab), FISHING_ZONES) end)
-    if not okProg then warn("[FishTP] Progression tab error:", errProg) end
-    print("[FishTP] GUI built")
+    if not okProg then warn("[Nova] Progression tab error:", errProg) end
+    local okMisc, errMisc = pcall(function() Extras.build(MiscTab) end)
+    if not okMisc then warn("[Nova] Misc tab error:", errMisc) end
+    local okSet, errSet = pcall(function() NovaSettings.build(SettingsTab) end)
+    if not okSet then warn("[Nova] Settings tab error:", errSet) end
+    print("[Nova] GUI built")
 else
-    warn("[FishTP] window setup error:", errWin)
+    warn("[Nova] window setup error:", errWin)
 end
 
 -- ============================================================
--- Left Shift UI toggle
+-- UI toggle key (rebindable in Settings > Interface)
 -- ============================================================
-local UIS = game:GetService("UserInputService")
 local visible = true
-local lastToggle = 0
 
-local function setVisible(state)
-    visible = state
-    if not MainWindow then return end
-    pcall(function() MainWindow:SetVisible(state) end)
-    pcall(function() MainWindow.Visible = state end)
-    pcall(function()
-        if MainWindow.Toggle then MainWindow:Toggle(state) end
-    end)
-end
-
--- both the event and the poll below see the same key press, so ignore repeats within 0.3s
 local function toggleUI()
-    if os.clock() - lastToggle < 0.3 then return end
-    lastToggle = os.clock()
-    setVisible(not visible)
+    visible = not visible
+    if not MainWindow then return end
+    pcall(function() MainWindow:SetVisible(visible) end)
 end
 
-pcall(function()
-    UIS.InputBegan:Connect(function(input, gpe)
-        if getgenv().FishTPSession ~= FISHTP_SESSION then return end
-        if gpe then return end
-        if input.KeyCode == Enum.KeyCode.LeftShift then
-            toggleUI()
-        end
-    end)
-end)
-
--- some executors miss UIS events; poll as backup
-task.spawn(function()
-    local lastState = false
-    while getgenv().FishTPSession == FISHTP_SESSION do
-        task.wait(0.05)
-        local down = UIS:IsKeyDown(Enum.KeyCode.LeftShift)
-        if down and not lastState then
-            toggleUI()
-        end
-        lastState = down
-    end
-end)
+NovaSettings.bindKey("toggleKey", toggleUI)
 
 -- ============================================================
 -- boot state
@@ -329,6 +306,8 @@ task.spawn(function()
     if _G.Config.AutoShake and AutoShake then AutoShake(true) end
     if AutoReel and _G.Config.ReelMode ~= "Manual" then AutoReel(true) end
     if _G.Config.AutoSell and AutoSell then AutoSell(true) end
+    task.wait(0.5)
+    NovaSettings.autoloadConfig()
 end)
 
-print("[FishTP] ready — LShift toggles UI")
+print("[Nova] ready — " .. tostring(NovaSettings.ui.toggleKey) .. " toggles UI, " .. tostring(NovaSettings.ui.panicKey) .. " is the panic key")

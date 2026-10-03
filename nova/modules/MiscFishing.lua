@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- MiscFishing (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- MiscFishing (Nova module), deobfuscated and cleaned.
 -- Extras: AutoEquipRod (equips the rod named in PlayerStats every 0.1s), DeleteFishModel (destroys current and new
 -- workspace.active children except crates/chests/totems), DeleteAllMap (deletes world.map and decoration folders,
 -- adds a 100k-stud AntiFallBaseplate and an anti-void loop), DeleteAllCharacters. Also adds a "S$" Shady Scrip
@@ -168,7 +168,7 @@ task.spawn(function()
 		end
 
 		task.spawn(function()
-			while label and label.Parent and getgenv().FishTPSession == FISHTP_SESSION do
+			while label and label.Parent and getgenv().NovaSession == NOVA_SESSION do
 				updateScrip()
 				task.wait(1)
 			end
@@ -177,7 +177,7 @@ task.spawn(function()
 
 	addScripCounter()
 	player.CharacterAdded:Connect(function()
-		if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+		if getgenv().NovaSession ~= NOVA_SESSION then return end
 		task.wait(2)
 		addScripCounter()
 	end)
@@ -189,7 +189,7 @@ return {
 
 		if enabled then
 			task.spawn(function()
-				while getgenv().FishTPSession == FISHTP_SESSION and _G.Config.isEquipRpd do
+				while getgenv().NovaSession == NOVA_SESSION and _G.Config.isEquipRpd do
 					equipRod()
 					task.wait(0.1)
 				end
@@ -271,7 +271,7 @@ return {
 				if not _G.__antiVoidRunning then
 					_G.__antiVoidRunning = true
 					task.spawn(function()
-						while getgenv().FishTPSession == FISHTP_SESSION and _G.Config.DeleteMap do
+						while getgenv().NovaSession == NOVA_SESSION and _G.Config.DeleteMap do
 							task.wait(1)
 							pcall(function()
 								local Character = LocalPlayer.Character

@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- TeleportNPC (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- TeleportNPC (Nova module), deobfuscated and cleaned.
 -- TP spots from world.spawns.TpSpots and the 20 balloon positions; "None" returns to where you were.
 -- Fixed deobfuscator mistake: the spot scan called GetChildren("pairs") (the VM does pairs(tpSpots:GetChildren())).
 

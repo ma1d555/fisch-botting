@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- AutoReel (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- AutoReel (Nova module), deobfuscated and cleaned.
 -- Hooks the game's ReelController: Update() scales the bar by barSize (Legit mode snaps the fish to the bar),
 -- StartReel() snap-skips fish that _G.CheckSnapFilter rejects (drops the bobber, fires Reel/Finish itself and returns a fake reel), or with
 -- InstantReel/AutoPerfectCatch waits until ready and finishes the reel itself, rolling "perfect" from
@@ -35,14 +35,14 @@ task.spawn(function()
 		return
 	end
 
-	local originals = getgenv().FishTPReelOriginals
+	local originals = getgenv().NovaReelOriginals
 	if not originals then
 		originals = { StartReel = ReelController.StartReel, Update = ReelController.Update }
-		getgenv().FishTPReelOriginals = originals
+		getgenv().NovaReelOriginals = originals
 	end
 	originalStartReel = originals.StartReel
-	if getgenv().FishTPOnUnload then
-		getgenv().FishTPOnUnload(function()
+	if getgenv().NovaOnUnload then
+		getgenv().NovaOnUnload(function()
 			ReelController.StartReel = originals.StartReel
 			ReelController.Update = originals.Update
 		end)
@@ -163,7 +163,7 @@ task.spawn(function()
 			end
 
 			reelGui:GetPropertyChangedSignal("Enabled"):Connect(function()
-				if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+				if getgenv().NovaSession ~= NOVA_SESSION then return end
 				if reelGui.Enabled then
 					resizeBars(reelGui)
 				end
@@ -181,7 +181,7 @@ task.spawn(function()
 		end
 
 		PlayerGui.ChildAdded:Connect(function(child)
-			if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+			if getgenv().NovaSession ~= NOVA_SESSION then return end
 			if child.Name == "reel" or child.Name == "Reel" then
 				watchReelGui(child)
 			end
@@ -330,7 +330,7 @@ task.spawn(function()
 					local waited2 = 0
 					local reelingStarted = false
 					local connection = Character:GetAttributeChangedSignal("Reeling"):Connect(function()
-						if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+						if getgenv().NovaSession ~= NOVA_SESSION then return end
 						reelingStarted = Character:GetAttribute("Reeling")
 					end)
 
@@ -349,7 +349,7 @@ task.spawn(function()
 
 					if reelObject.OnReady then
 						local connection = reelObject.OnReady:Connect(function()
-							if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+							if getgenv().NovaSession ~= NOVA_SESSION then return end
 							ready = true
 						end)
 
@@ -427,7 +427,7 @@ task.spawn(function()
 	end
 
 	task.spawn(function()
-		while getgenv().FishTPSession == FISHTP_SESSION do
+		while getgenv().NovaSession == NOVA_SESSION do
 			task.wait(5)
 
 			local reelStuck = _G.IsReeling and _G.ReelStartTick and tick() - _G.ReelStartTick > 10
@@ -465,7 +465,7 @@ local function dropBobberSoon()
 	end)
 end
 LocalPlayer.CharacterAdded:Connect(function()
-	if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+	if getgenv().NovaSession ~= NOVA_SESSION then return end
 	task.wait(1)
 	dropBobberSoon()
 end)

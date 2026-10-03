@@ -2,40 +2,39 @@
 -- Progression tab: works through the Fortune, Wisdom, Heaven's, Pinion's Aria and Tryhard rods by itself.
 -- Fishing tab: fishing controls from the FishOnly build.
 -- TP tab: built by the same AreaTP module the full Main_RS uses.
--- Left Shift toggles UI.
+-- Right Shift toggles UI.
 
-if getgenv().FishTPUnload then
-    pcall(getgenv().FishTPUnload)
-elseif getgenv().__FishTP_Loaded then
-    warn("[FishTP] an older version is still running and can't be unloaded: rejoin once")
+if getgenv().NovaUnload then
+    pcall(getgenv().NovaUnload)
+elseif getgenv().__Nova_Loaded then
+    warn("[Nova] an older version is still running and can't be unloaded: rejoin once")
     return
 end
-getgenv().__FishTP_Loaded = true
-local FISHTP_SESSION = {}
-getgenv().FishTPSession = FISHTP_SESSION
+getgenv().__Nova_Loaded = true
+local NOVA_SESSION = {}
+getgenv().NovaSession = NOVA_SESSION
 local unloadSteps = {}
-getgenv().FishTPOnUnload = function(step) table.insert(unloadSteps, step) end
-getgenv().FishTPUnload = function()
-    if getgenv().FishTPSession ~= FISHTP_SESSION then return end
-    getgenv().FishTPSession = nil
-    getgenv().FishTPUnload = nil
-    getgenv().FishTPOnUnload = nil
+getgenv().NovaOnUnload = function(step) table.insert(unloadSteps, step) end
+getgenv().NovaUnload = function()
+    if getgenv().NovaSession ~= NOVA_SESSION then return end
+    getgenv().NovaSession = nil
+    getgenv().NovaUnload = nil
+    getgenv().NovaOnUnload = nil
     for i = #unloadSteps, 1, -1 do pcall(unloadSteps[i]) end
     local roots = {}
     pcall(function() roots[#roots + 1] = game:GetService("CoreGui") end)
     pcall(function() if gethui then roots[#roots + 1] = gethui() end end)
     for _, root in ipairs(roots) do
         for _, gui in ipairs(root:GetChildren()) do
-            if gui.Name == "ShieldTeam || Luowis" or gui.Name == "NotificationGui" then pcall(function() gui:Destroy() end) end
+            if gui.Name == "Nova_UI" then pcall(function() gui:Destroy() end) end
         end
     end
-    _G.Speed_Library = nil
-    pcall(function() getgenv().Speed_Library = nil end)
-    _G.ShieldScriptActive = nil
-    getgenv().__FishTP_Loaded = nil
-    print("[FishTP] unloaded")
+    if getgenv().NovaUI then pcall(getgenv().NovaUI.Destroy) end
+    getgenv().NovaUI = nil
+    getgenv().__Nova_Loaded = nil
+    print("[Nova] unloaded")
 end
-print("[FishTP] booting")
+print("[Nova] booting")
 
 -- ============================================================
 -- kill client chat / system spam
@@ -133,9 +132,10 @@ local ModulePaths = {
 
 local ModuleCache = {}
 
--- The hub's modules are readable copies in the executor's workspace, fishtp/modules (added by the Progression build).
+-- The hub's modules come from the repo's nova/modules (the loader's fetch: GitHub first, workspace copy as fallback).
 local function readLocal(file)
-    local ok, text = pcall(readfile, "fishtp/" .. file)
+    if getgenv().NovaFetch then return getgenv().NovaFetch(file) end
+    local ok, text = pcall(readfile, "nova/" .. file)
     return ok and type(text) == "string" and text or nil
 end
 
@@ -158,10 +158,10 @@ local function getMod(name)
         if fn then runOk, out = pcall(fn) end
         if runOk then
             ModuleCache[name] = out
-            print("[FishTP] loaded (local):", name)
+            print("[Nova] loaded (local):", name)
             return out
         end
-        warn("[FishTP] local module failed, downloading it instead:", name, out)
+        warn("[Nova] local module failed, downloading it instead:", name, out)
     end
 
     local attempt, ok, res = 0, false, nil
@@ -174,16 +174,16 @@ local function getMod(name)
         task.wait(1)
     end
     if not ok or not res then
-        warn("[FishTP] fetch fail:", name)
+        warn("[Nova] fetch fail:", name)
         return nil
     end
 
     local fn, err = loadstring(res)
-    if not fn then warn("[FishTP] compile fail:", name, err) return nil end
+    if not fn then warn("[Nova] compile fail:", name, err) return nil end
     local runOk, out = pcall(fn)
-    if not runOk then warn("[FishTP] runtime fail:", name, out) return nil end
+    if not runOk then warn("[Nova] runtime fail:", name, out) return nil end
     ModuleCache[name] = out
-    print("[FishTP] loaded:", name)
+    print("[Nova] loaded:", name)
     return out
 end
 
@@ -194,8 +194,8 @@ _G.getMod = getMod
 -- ============================================================
 pcall(function()
     local RS = game:GetService("ReplicatedStorage")
-    local storage = RS:FindFirstChild("ShieldNPCStorage") or Instance.new("Folder")
-    storage.Name = "ShieldNPCStorage"
+    local storage = RS:FindFirstChild("NovaNPCStorage") or Instance.new("Folder")
+    storage.Name = "NovaNPCStorage"
     storage.Parent = RS
     for _, name in ipairs({ "Marc Merchant", "Shady Merchant" }) do
         if not storage:FindFirstChild(name) then
@@ -245,57 +245,19 @@ getgenv().__var = _G.__var
 -- ============================================================
 -- GUI library
 -- ============================================================
-local Speed_Library
-local guiEncUrls = {
-    "https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/GUIENC.lua",
-    "https://raw.githubusercontent.com/KAN-FISCH/Fisch/refs/heads/main/GUIENC.lua",
-}
-pcall(function()
-    if _G.Speed_Library then
-        Speed_Library = _G.Speed_Library
-    elseif getgenv and getgenv().Speed_Library then
-        Speed_Library = getgenv().Speed_Library
-    elseif readfile and isfile and isfile("ShielDTeam/GUIENC.lua") then
-        Speed_Library = loadstring(readfile("ShielDTeam/GUIENC.lua"))()
-    elseif readfile and isfile and isfile("GUIENC.lua") then
-        Speed_Library = loadstring(readfile("GUIENC.lua"))()
-    elseif readfile and isfile and isfile("NewFish5_Source/ShielD_UILib.lua") then
-        Speed_Library = loadstring(readfile("NewFish5_Source/ShielD_UILib.lua"))()
-    end
-end)
-if not Speed_Library then
-    local localSource = readLocal("modules/GUIENC.lua")
-    local fn = localSource and loadstring(localSource, "=GUIENC")
-    local runOk, lib = false, nil
+local NovaUI
+do
+    local source = readLocal("modules/NovaUI.lua")
+    local fn, err = loadstring(source or "", "=NovaUI")
+    local runOk, lib = false, err
     if fn then runOk, lib = pcall(fn) end
-    if runOk and lib then
-        Speed_Library = lib
-        print("[FishTP] GUIENC loaded (local)")
-    else
-        warn("[FishTP] local GUIENC failed, downloading it instead:", lib)
+    if not runOk or type(lib) ~= "table" then
+        warn("[Nova] can't load nova/modules/NovaUI.lua:", lib)
+        return
     end
+    NovaUI = lib
 end
-if not Speed_Library then
-    for _, url in ipairs(guiEncUrls) do
-        local ok, res = pcall(game.HttpGet, game, url)
-        if ok and res and #res > 100 and not res:sub(1, 20):lower():match("<") then
-            local fn = loadstring(res)
-            if fn then
-                local runOk, lib = pcall(fn)
-                if runOk and lib then
-                    Speed_Library = lib
-                    print("[FishTP] GUIENC loaded from:", url)
-                    break
-                end
-            end
-        end
-    end
-end
-if not Speed_Library then
-    warn("[FishTP] GUIENC failed to load")
-    return
-end
-_G.Speed_Library = Speed_Library
+getgenv().NovaUI = NovaUI
 
 -- loaded after the GUI lib, same order as Main_RS
 local AreaTP = getMod("AreaTP")

@@ -9,6 +9,8 @@
 -- ============================================================
 
 local Progression = {}
+Progression.statusHooks = {} -- functions(status, detail) the hub adds (webhook alerts)
+Progression.catchHooks = {} -- functions(name, fish) called on every catch (catch alerts and toasts)
 do
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local CollectionService = game:GetService("CollectionService")
@@ -17,7 +19,7 @@ do
 	local LP = Players.LocalPlayer
 
 	-- This run of the script (the hub's session; see Unload): loops and event handlers stop once it's over.
-	local function alive() return getgenv().FishTPSession == FISHTP_SESSION end
+	local function alive() return getgenv().NovaSession == NOVA_SESSION end
 
 	local DIR = "amethyst/progression"
 	pcall(function()
@@ -92,6 +94,7 @@ do
 		state.status = status
 		state.detail = detail or ""
 		log(status .. (detail and detail ~= "" and (" - " .. detail) or ""))
+		for _, hook in ipairs(Progression.statusHooks) do pcall(hook, status, state.detail) end
 		notify()
 	end
 

@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- TeleportZone (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- TeleportZone (Nova module), deobfuscated and cleaned.
 -- Teleports to a zone by name: hardcoded CFrames, else a fuzzy name match, else the first part of that zone in
 -- workspace.zones with a raycast down. GetZoneList merges the scanned and hardcoded zone names.
 

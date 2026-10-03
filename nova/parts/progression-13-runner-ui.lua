@@ -25,8 +25,8 @@
 				if err == STOP then break end
 				-- A script error names a line of the joined script: the loader says which part and line that is.
 				local message = tostring(err)
-				local where = getgenv and getgenv().FishTPWhere
-				if where then message = message:gsub("FishTP:(%d+):", function(n) return where(tonumber(n)) .. ":" end) end
+				local where = getgenv and getgenv().NovaWhere
+				if where then message = message:gsub("Nova:(%d+):", function(n) return where(tonumber(n)) .. ":" end) end
 				setStatus("Stuck on " .. rod, message)
 				break
 			end
@@ -63,8 +63,8 @@
 	end
 
 	-- Unload: the plan stops, fishing goes back to how it was, and nothing is left held, pressed or floating.
-	if getgenv().FishTPOnUnload then
-		getgenv().FishTPOnUnload(function()
+	if getgenv().NovaOnUnload then
+		getgenv().NovaOnUnload(function()
 			Progression.stop()
 			pcall(Fish.stop)
 			pcall(G.mouse, false)
@@ -124,7 +124,7 @@
 		local placesSection = tab:AddSection("Locations", true, "Left")
 
 		baitSection:AddToggle({
-			Title = "Auto bait (puts on the bait you have most of when none is on)",
+			Title = "Auto Bait",
 			Default = state.settings.autoBait ~= false,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -133,7 +133,7 @@
 			end,
 		})
 		baitSection:AddToggle({
-			Title = "Buy bait crates when out (100 at Moosewood, then opens them)",
+			Title = "Auto Buy Crates",
 			Default = state.settings.buyBaitCrates ~= false,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -142,7 +142,7 @@
 			end,
 		})
 		baitSection:AddButton({
-			Title = "Open my bait crates now (buys 100 if I have none)",
+			Title = "Open Crates",
 			Callback = function()
 				task.spawn(function() withProgressionPaused(Progression.restockBait) end)
 			end,
@@ -150,28 +150,28 @@
 		local crateAmount = 100
 		if baitSection.AddInput then
 			baitSection:AddInput({
-				Title = "Bait crates to buy",
+				Title = "Crate Amount",
 				Default = "100",
 				Callback = function(v) crateAmount = math.max(1, math.floor(tonumber(v) or 100)) end,
 			})
 		end
 		baitSection:AddButton({
-			Title = "Buy that many bait crates (then back to where I was)",
+			Title = "Buy Crates",
 			Callback = function()
 				task.spawn(function() withProgressionPaused(Progression.buyBaitCrates, crateAmount) end)
 			end,
 		})
 
 		extrasSection:AddButton({
-			Title = "Redeem all codes",
+			Title = "Redeem Codes",
 			Callback = function() task.spawn(Progression.redeemCodes) end,
 		})
 		extrasSection:AddButton({
-			Title = "Explore all areas (press again to stop)",
+			Title = "Explore Areas",
 			Callback = function() task.spawn(Progression.exploreAreas) end,
 		})
 		extrasSection:AddButton({
-			Title = "Save what's on screen (F7)",
+			Title = "Snapshot (F7)",
 			Callback = function() task.spawn(Progression.snapshot) end,
 		})
 		pcall(function()
@@ -188,7 +188,7 @@
 			saveSettings()
 		end
 		main:AddToggle({
-			Title = "Auto progression",
+			Title = "Auto Progression",
 			Default = resumeHop == true,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -196,7 +196,7 @@
 			end,
 		})
 		local statusPara = main:AddParagraph({ Title = "Status", Content = "Idle" })
-		local accountPara = main:AddParagraph({ Title = "This account", Content = "…" })
+		local accountPara = main:AddParagraph({ Title = "Account", Content = "…" })
 
 		for _, rod in ipairs(ROD_ORDER) do
 			rodsSection:AddToggle({
@@ -210,7 +210,7 @@
 			})
 		end
 		rodsSection:AddToggle({
-			Title = "Sundial Totem for enchanting in the day (buys one if needed)",
+			Title = "Use Sundial",
 			Default = state.settings.useSundial ~= false,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -220,7 +220,7 @@
 		})
 		-- The rod the Chaotic relic is fished with (Pinion's Aria): your pick when the switch is on, else the fastest lure.
 		rodsSection:AddToggle({
-			Title = "Chaotic relic: use my rod below (off: fastest lure)",
+			Title = "Chaotic: My Rod",
 			Default = state.settings.useChaoticRod == true,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -235,7 +235,7 @@
 		table.sort(ownedRods)
 		if #ownedRods > 0 then
 			rodsSection:AddDropdown({
-				Title = "Chaotic relic rod",
+				Title = "Chaotic Rod",
 				Options = ownedRods,
 				Default = state.settings.chaoticRod or ownedRods[1],
 				Callback = function(v)
@@ -247,7 +247,7 @@
 			})
 		end
 		rodsSection:AddButton({
-			Title = "Fly the ring course now (Pinion's Aria)",
+			Title = "Fly Rings",
 			Callback = function()
 				task.spawn(function()
 					withProgressionPaused(function()
@@ -257,11 +257,11 @@
 			end,
 		})
 		rodsSection:AddButton({
-			Title = "Mark the ring course done (Pinion's Aria)",
+			Title = "Rings Done",
 			Callback = function() ariaDone("cloud") end,
 		})
 		rodsSection:AddButton({
-			Title = "Redo Pinion's Aria steps from the start",
+			Title = "Reset Aria",
 			Callback = function()
 				state.settings.aria = {}
 				saveSettings()
@@ -269,7 +269,7 @@
 			end,
 		})
 		rodsSection:AddToggle({
-			Title = "Teleport to the grind zone (off: fish where I turn it on)",
+			Title = "TP To Grind Zone",
 			Default = state.settings.teleportToGrind == true,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -280,7 +280,7 @@
 		local zoneOptions = { "XP spot", "C$ farm spot" }
 		for _, zone in ipairs(zones) do zoneOptions[#zoneOptions + 1] = zone end
 		rodsSection:AddDropdown({
-			Title = "Grind zone (other fishing; levels use the XP spot, C$ the C$ farm spot)",
+			Title = "Grind Zone",
 			Options = zoneOptions,
 			Default = state.settings.grindZone or "None",
 			Callback = function(v)
@@ -292,7 +292,7 @@
 		})
 
 		altsSection:AddToggle({
-			Title = "Share items with my other alts",
+			Title = "Share With Alts",
 			Default = state.settings.shareWithAlts,
 			Callback = function(on)
 				if building then return end -- some UI libraries fire callbacks while building; keep saved settings
@@ -304,8 +304,8 @@
 		local shareItem, shareAmount = "", 1
 		if altsSection.AddInput then
 			altsSection:AddInput({
-				Title = "Item to get",
-				Content = "Fish or item, e.g. Perch or Driftwood (Mythical)",
+				Title = "Item",
+				Placeholder = "Perch, Driftwood (Mythical)",
 				Default = "",
 				Callback = function(v) shareItem = tostring(v or "") end,
 			})
@@ -315,25 +315,25 @@
 				Callback = function(v) shareAmount = math.max(1, math.floor(tonumber(v) or 1)) end,
 			})
 			altsSection:AddButton({
-				Title = "Get it from my alts",
+				Title = "Get From Alts",
 				Callback = function() task.spawn(Progression.shareRequest, shareItem, shareAmount) end,
 			})
 		end
 		-- Servers (user): the alts with sharing on come along (see Alts.followHop).
 		altsSection:AddButton({
-			Title = "Server hop (my sharing alts come too)",
+			Title = "Server Hop",
 			Callback = function() task.spawn(Progression.serverHop, true) end,
 		})
 		local altsJobId = ""
 		if altsSection.AddInput then
 			altsSection:AddInput({
-				Title = "Job ID to join",
-				Content = "the server's job ID",
+				Title = "Job ID",
+				Placeholder = "Job ID",
 				Default = "",
 				Callback = function(v) altsJobId = tostring(v or "") end,
 			})
 			altsSection:AddButton({
-				Title = "Join that server (my sharing alts come too)",
+				Title = "Join Server",
 				Callback = function() task.spawn(Progression.joinServer, altsJobId, true) end,
 			})
 		end
@@ -342,6 +342,7 @@
 		local selectedSpot = SPOT_NAMES[1]
 		placesSection:AddDropdown({
 			Title = "Location",
+			Save = false,
 			Options = SPOT_NAMES,
 			Default = selectedSpot,
 			Callback = function(v)
@@ -351,11 +352,11 @@
 			end,
 		})
 		placesSection:AddButton({
-			Title = "Save my position as this location",
+			Title = "Save Position",
 			Callback = function() saveSpot(selectedSpot) notify() end,
 		})
 		placesSection:AddButton({
-			Title = "Go to this location",
+			Title = "Go To",
 			Callback = function()
 				local pos = G.spot(selectedSpot)
 				if pos then task.spawn(G.teleport, pos) end
@@ -393,6 +394,68 @@
 		end
 		building = false
 		log("Progression tab ready")
+	end
+
+	-- XP into the current level. The game keeps it in one of a few places depending on the version: the first that
+	-- has a number is used from then on, and where it came from (or what was looked at) goes in the log once.
+	local xpGetter, xpNextTry, xpLogged = nil, 0, false
+	local XP_NAMES = { "xp", "Xp", "XP", "exp", "Exp", "experience", "Experience" }
+	local function findXP()
+		local stats
+		pcall(function() stats = workspace.PlayerStats[LP.Name].T[LP.Name].Stats end)
+		if stats then
+			for _, key in ipairs(XP_NAMES) do
+				local obj = stats:FindFirstChild(key)
+				if obj and obj:IsA("ValueBase") and tonumber(obj.Value) then
+					return function() return tonumber(obj.Value) end, "PlayerStats Stats." .. key
+				end
+			end
+		end
+		local board = LP:FindFirstChild("leaderstats")
+		for _, key in ipairs(XP_NAMES) do
+			local obj = board and board:FindFirstChild(key)
+			if obj and tonumber(obj.Value) then return function() return tonumber(obj.Value) end, "leaderstats." .. key end
+		end
+		for _, path in ipairs({ { "Stats", "xp" }, { "Stats", "XP" }, { "Stats", "Xp" }, { "xp" }, { "XP" }, { "Xp" }, { "Experience" }, { "Stats", "Experience" } }) do
+			local ok, value = pcall(function() return G.data().PlayerDataReplicator:TryIndex(path) end)
+			if ok and tonumber(value) then
+				return function()
+					local okNow, now = pcall(function() return G.data().PlayerDataReplicator:TryIndex(path) end)
+					return okNow and tonumber(now) or nil
+				end, "PlayerData " .. table.concat(path, ".")
+			end
+		end
+		if not xpLogged then
+			xpLogged = true
+			local names = {}
+			pcall(function() for _, child in ipairs(stats:GetChildren()) do names[#names + 1] = child.Name end end)
+			log("xp: not found (PlayerStats Stats has: " .. (#names > 0 and table.concat(names, ", ") or "nothing") .. ")")
+		end
+	end
+	function Progression.xp()
+		if not xpGetter and os.clock() >= xpNextTry then
+			xpNextTry = os.clock() + 30
+			local getter, source = findXP()
+			if getter then
+				xpGetter = getter
+				log("xp: read from " .. source)
+			end
+		end
+		return xpGetter and xpGetter() or nil
+	end
+
+	-- What the hub's Misc tab and Settings read and call (stats panel, panic key, configs).
+	function Progression.stats()
+		return { catches = state.catches, level = G.level(), coins = tonumber(G.coins()) or 0, xp = Progression.xp(), running = state.running }
+	end
+	function Progression.panic()
+		Progression.stop()
+		pcall(Fish.stop)
+		pcall(G.mouse, false)
+	end
+	function Progression.getSpots() return spots() end
+	function Progression.setSpots(all)
+		if type(all) == "table" then writeJson(SPOTS_FILE, all) notify() end
 	end
 
 	Progression.G = G
