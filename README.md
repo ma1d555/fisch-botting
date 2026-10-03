@@ -5,7 +5,8 @@ Nova: Fisch fishing hub + rod progression.
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ma1d555/fisch-botting/claude/gallant-lamport-7dusyx/nova/loader.lua"))()
 ```
- The script lives in the executor's `workspace/nova/` folder; `loader.lua` joins the parts in `nova/parts.txt` and runs them.
+
+`loader.lua` downloads the parts listed in `nova/parts.txt` from this repo (a `workspace/nova/` copy is the fallback), joins them and runs them. Settings are saved in `workspace/nova/`.
 
 ## UI
 
