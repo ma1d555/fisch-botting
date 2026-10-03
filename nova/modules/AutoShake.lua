@@ -1,12 +1,12 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- AutoShake (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- AutoShake (Nova module), deobfuscated and cleaned.
 -- While Config.AutoShake is on, clicks every button in PlayerGui.shakeui.safezone every 0.02s by firing its
 -- MouseButton1Click/Activated connections (getconnections, or firesignal). Returns the on/off setter.
 
 local LocalPlayer = game:GetService("Players").LocalPlayer
 task.spawn(function()
-	while getgenv().FishTPSession == FISHTP_SESSION do
+	while getgenv().NovaSession == NOVA_SESSION do
 		if _G.Config and _G.Config.AutoShake then
 			local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
 			local shakeUi = PlayerGui and PlayerGui:FindFirstChild("shakeui")

@@ -1,5 +1,5 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
+local NOVA_SESSION = getgenv().NovaSession
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
@@ -133,10 +133,10 @@ local function isShadyLocked()
 end
 
 local function ensureStorage()
-    local storage = ReplicatedStorage:FindFirstChild("ShieldNPCStorage")
+    local storage = ReplicatedStorage:FindFirstChild("NovaNPCStorage")
     if not storage then
         storage = Instance.new("Folder")
-        storage.Name = "ShieldNPCStorage"
+        storage.Name = "NovaNPCStorage"
         storage.Parent = ReplicatedStorage
     end
     return storage
@@ -427,7 +427,7 @@ local function AutoSell()
         -- Initial sell pass immediately on toggle ON (Shady lalu CS)
         pcall(executeSellCycle)
         
-        while getgenv().FishTPSession == FISHTP_SESSION and _G.Config and _G.Config.AutoSell do
+        while getgenv().NovaSession == NOVA_SESSION and _G.Config and _G.Config.AutoSell do
             local intervalMinutes = tonumber(_G.Config and _G.Config.AutoSellInterval) or 3
             if intervalMinutes < 1 then intervalMinutes = 1 end
             local intervalSeconds = intervalMinutes * 60
@@ -458,7 +458,7 @@ local function AutoSellStorage()
             return
         end
         local args = {{voice = 12, uid = "merchant_moosewood", npc = useNpc, idle = idle}}
-        while getgenv().FishTPSession == FISHTP_SESSION and _G.Config and _G.Config.AutoSellStorage do
+        while getgenv().NovaSession == NOVA_SESSION and _G.Config and _G.Config.AutoSellStorage do
             pcall(function()
                 local events = game:GetService("ReplicatedStorage"):WaitForChild("events", 5)
                 local sellAllStorage = events and events:FindFirstChild("SellAllStorage")
@@ -500,7 +500,7 @@ task.spawn(function()
         local annoCatch = events and (events:FindFirstChild("anno_catch") or events:WaitForChild("anno_catch", 5))
         if annoCatch then
             annoCatch.OnClientEvent:Connect(function(fishData)
-                if getgenv().FishTPSession ~= FISHTP_SESSION then return end
+                if getgenv().NovaSession ~= NOVA_SESSION then return end
                 if not fishData then return end
                 local mutStr = tostring(fishData.Mutation or ""):lower()
                 local fishName = tostring(fishData.Name or ""):lower()

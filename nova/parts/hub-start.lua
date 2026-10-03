@@ -4,38 +4,37 @@
 -- TP tab: built by the same AreaTP module the full Main_RS uses.
 -- Right Shift toggles UI.
 
-if getgenv().FishTPUnload then
-    pcall(getgenv().FishTPUnload)
-elseif getgenv().__FishTP_Loaded then
-    warn("[FishTP] an older version is still running and can't be unloaded: rejoin once")
+if getgenv().NovaUnload then
+    pcall(getgenv().NovaUnload)
+elseif getgenv().__Nova_Loaded then
+    warn("[Nova] an older version is still running and can't be unloaded: rejoin once")
     return
 end
-getgenv().__FishTP_Loaded = true
-local FISHTP_SESSION = {}
-getgenv().FishTPSession = FISHTP_SESSION
+getgenv().__Nova_Loaded = true
+local NOVA_SESSION = {}
+getgenv().NovaSession = NOVA_SESSION
 local unloadSteps = {}
-getgenv().FishTPOnUnload = function(step) table.insert(unloadSteps, step) end
-getgenv().FishTPUnload = function()
-    if getgenv().FishTPSession ~= FISHTP_SESSION then return end
-    getgenv().FishTPSession = nil
-    getgenv().FishTPUnload = nil
-    getgenv().FishTPOnUnload = nil
+getgenv().NovaOnUnload = function(step) table.insert(unloadSteps, step) end
+getgenv().NovaUnload = function()
+    if getgenv().NovaSession ~= NOVA_SESSION then return end
+    getgenv().NovaSession = nil
+    getgenv().NovaUnload = nil
+    getgenv().NovaOnUnload = nil
     for i = #unloadSteps, 1, -1 do pcall(unloadSteps[i]) end
     local roots = {}
     pcall(function() roots[#roots + 1] = game:GetService("CoreGui") end)
     pcall(function() if gethui then roots[#roots + 1] = gethui() end end)
     for _, root in ipairs(roots) do
         for _, gui in ipairs(root:GetChildren()) do
-            if gui.Name == "FishTP_UI" then pcall(function() gui:Destroy() end) end
+            if gui.Name == "Nova_UI" then pcall(function() gui:Destroy() end) end
         end
     end
-    if getgenv().FishTPUI then pcall(getgenv().FishTPUI.Destroy) end
-    getgenv().FishTPUI = nil
-    _G.ShieldScriptActive = nil
-    getgenv().__FishTP_Loaded = nil
-    print("[FishTP] unloaded")
+    if getgenv().NovaUI then pcall(getgenv().NovaUI.Destroy) end
+    getgenv().NovaUI = nil
+    getgenv().__Nova_Loaded = nil
+    print("[Nova] unloaded")
 end
-print("[FishTP] booting")
+print("[Nova] booting")
 
 -- ============================================================
 -- kill client chat / system spam
@@ -133,10 +132,10 @@ local ModulePaths = {
 
 local ModuleCache = {}
 
--- The hub's modules come from the repo's fishtp/modules (the loader's fetch: GitHub first, workspace copy as fallback).
+-- The hub's modules come from the repo's nova/modules (the loader's fetch: GitHub first, workspace copy as fallback).
 local function readLocal(file)
-    if getgenv().FishTPFetch then return getgenv().FishTPFetch(file) end
-    local ok, text = pcall(readfile, "fishtp/" .. file)
+    if getgenv().NovaFetch then return getgenv().NovaFetch(file) end
+    local ok, text = pcall(readfile, "nova/" .. file)
     return ok and type(text) == "string" and text or nil
 end
 
@@ -159,10 +158,10 @@ local function getMod(name)
         if fn then runOk, out = pcall(fn) end
         if runOk then
             ModuleCache[name] = out
-            print("[FishTP] loaded (local):", name)
+            print("[Nova] loaded (local):", name)
             return out
         end
-        warn("[FishTP] local module failed, downloading it instead:", name, out)
+        warn("[Nova] local module failed, downloading it instead:", name, out)
     end
 
     local attempt, ok, res = 0, false, nil
@@ -175,16 +174,16 @@ local function getMod(name)
         task.wait(1)
     end
     if not ok or not res then
-        warn("[FishTP] fetch fail:", name)
+        warn("[Nova] fetch fail:", name)
         return nil
     end
 
     local fn, err = loadstring(res)
-    if not fn then warn("[FishTP] compile fail:", name, err) return nil end
+    if not fn then warn("[Nova] compile fail:", name, err) return nil end
     local runOk, out = pcall(fn)
-    if not runOk then warn("[FishTP] runtime fail:", name, out) return nil end
+    if not runOk then warn("[Nova] runtime fail:", name, out) return nil end
     ModuleCache[name] = out
-    print("[FishTP] loaded:", name)
+    print("[Nova] loaded:", name)
     return out
 end
 
@@ -195,8 +194,8 @@ _G.getMod = getMod
 -- ============================================================
 pcall(function()
     local RS = game:GetService("ReplicatedStorage")
-    local storage = RS:FindFirstChild("ShieldNPCStorage") or Instance.new("Folder")
-    storage.Name = "ShieldNPCStorage"
+    local storage = RS:FindFirstChild("NovaNPCStorage") or Instance.new("Folder")
+    storage.Name = "NovaNPCStorage"
     storage.Parent = RS
     for _, name in ipairs({ "Marc Merchant", "Shady Merchant" }) do
         if not storage:FindFirstChild(name) then
@@ -246,19 +245,19 @@ getgenv().__var = _G.__var
 -- ============================================================
 -- GUI library
 -- ============================================================
-local FishUI
+local NovaUI
 do
-    local source = readLocal("modules/FishUI.lua")
-    local fn, err = loadstring(source or "", "=FishUI")
+    local source = readLocal("modules/NovaUI.lua")
+    local fn, err = loadstring(source or "", "=NovaUI")
     local runOk, lib = false, err
     if fn then runOk, lib = pcall(fn) end
     if not runOk or type(lib) ~= "table" then
-        warn("[FishTP] can't load fishtp/modules/FishUI.lua:", lib)
+        warn("[Nova] can't load nova/modules/NovaUI.lua:", lib)
         return
     end
-    FishUI = lib
+    NovaUI = lib
 end
-getgenv().FishTPUI = FishUI
+getgenv().NovaUI = NovaUI
 
 -- loaded after the GUI lib, same order as Main_RS
 local AreaTP = getMod("AreaTP")

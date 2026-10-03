@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- Utils (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- Utils (Nova module), deobfuscated and cleaned.
 -- DetectExecutor (identifyexecutor/getexecutorname/known globals; NX reports as "Luna"), DeepCopy, and
 -- FormatSeconds, which prints Indonesian units: Tahun = years, Bulan = months, Hari = days, Jam = hours, Mnt = minutes.
 

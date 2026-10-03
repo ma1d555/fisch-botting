@@ -1,4 +1,4 @@
--- FishUI: draggable window, RightShift toggle, RGB themes. Same call shape the hub already uses:
+-- NovaUI: draggable window, RightShift toggle, RGB themes. Same call shape the hub already uses:
 -- Library:CreateWindow -> :CreateGroup -> :CreateTab -> :AddSection -> :AddToggle/AddSlider/AddDropdown/AddButton/AddInput/AddParagraph.
 -- Every toggle/slider/dropdown registers itself (Library.controls) so configs can read and write them by key.
 
@@ -9,7 +9,7 @@ local TweenService = game:GetService("TweenService")
 
 local Library = {}
 Library.controls = {}   -- { key = control } for every saveable control
-Library.GuiName = "FishTP_UI"
+Library.GuiName = "Nova_UI"
 
 -- ---- theme ---------------------------------------------------------------------------------
 
@@ -658,7 +658,7 @@ function Library:CreateWindow(o)
 	bind(topFill, "BackgroundColor3", "panel")
 	local accentLine = make("Frame", { Size = UDim2.new(1, 0, 0, 2), Position = UDim2.new(0, 0, 1, -2), BorderSizePixel = 0 }, top)
 	bind(accentLine, "BackgroundColor3", "accent")
-	label(top, o.Title or "FishTP", 14, "text", { Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(12, 0), Font = Enum.Font.GothamBold, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
+	label(top, o.Title or "Nova", 14, "text", { Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(12, 0), Font = Enum.Font.GothamBold, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd })
 	label(top, o.Description or "", 11, "subtext", { Size = UDim2.fromOffset(140, 34), Position = UDim2.new(1, -148, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false })
 
 	local tabList = make("ScrollingFrame", {
@@ -744,7 +744,7 @@ local toastHolder
 function Library.Notify(title, content, duration)
 	if not Library.ToastsEnabled then return end
 	local gui = Library.Gui
-	if not gui or not gui.Parent then print("[FishTP] " .. tostring(title) .. ": " .. tostring(content or "")) return end
+	if not gui or not gui.Parent then print("[Nova] " .. tostring(title) .. ": " .. tostring(content or "")) return end
 	if not toastHolder or not toastHolder.Parent then
 		toastHolder = make("Frame", { Size = UDim2.new(0, 260, 1, -28), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 14), BackgroundTransparency = 1, ZIndex = 10 }, gui)
 		make("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Top }, toastHolder)

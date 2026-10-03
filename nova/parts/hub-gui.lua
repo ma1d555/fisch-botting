@@ -4,17 +4,17 @@
 local MainWindow, FishTab, TPTab, ProgTab, MiscTab, SettingsTab
 
 local function setupWindow()
-    FishSettings.autoloadTheme()
-    MainWindow = FishUI:CreateWindow({
-        Title = "FishTP • " .. executorName,
-        Description = "[" .. tostring(FishSettings.ui.toggleKey) .. "] toggle",
+    NovaSettings.autoloadTheme()
+    MainWindow = NovaUI:CreateWindow({
+        Title = "Nova • " .. executorName,
+        Description = "[" .. tostring(NovaSettings.ui.toggleKey) .. "] toggle",
         ["Tab Width"] = 110,
         SizeUi = UDim2.fromOffset(640, 440),
         Visible = true,
-        Layout = FishSettings.ui.layout,
+        Layout = NovaSettings.ui.layout,
         OnLayout = function(layout)
-            FishSettings.ui.layout = layout
-            FishSettings.saveUI()
+            NovaSettings.ui.layout = layout
+            NovaSettings.saveUI()
         end,
     })
 
@@ -24,7 +24,7 @@ local function setupWindow()
     ProgTab = Grp:CreateTab({ "Progression" })
     MiscTab = Grp:CreateTab({ "Misc" })
     SettingsTab = Grp:CreateTab({ "Settings", NoSave = true })
-    getgenv().FishTPWindow = MainWindow
+    getgenv().NovaWindow = MainWindow
 end
 
 local function buildFishingTab()
@@ -110,7 +110,7 @@ local function buildFishingTab()
     Left:AddButton({
         Title = "Unload",
         Callback = function()
-            if getgenv().FishTPUnload then getgenv().FishTPUnload() end
+            if getgenv().NovaUnload then getgenv().NovaUnload() end
         end
     })
 
@@ -257,10 +257,10 @@ local function buildTPTab()
             AreaTP(TPMain, TPSavePos, TPNPC, TPBalloon)
         end)
         if not okTP then
-            warn("[FishTP] AreaTP init error:", errTP)
+            warn("[Nova] AreaTP init error:", errTP)
             tpNotice("The teleport module crashed while building buttons:\n" .. tostring(errTP))
         end
-        print("[FishTP] ground snap attached to " .. snapWrapped .. " TP controls")
+        print("[Nova] ground snap attached to " .. snapWrapped .. " TP controls")
     else
         tpNotice("The teleport module (AreaTP) failed to download from GitHub. Rejoin and run the script again.")
     end
@@ -270,18 +270,18 @@ end
 local okWin, errWin = pcall(setupWindow)
 if okWin then
     local okFish, errFish = pcall(buildFishingTab)
-    if not okFish then warn("[FishTP] Fishing tab error:", errFish) end
+    if not okFish then warn("[Nova] Fishing tab error:", errFish) end
     local okTP, errTP = pcall(buildTPTab)
-    if not okTP then warn("[FishTP] TP tab error:", errTP) end
+    if not okTP then warn("[Nova] TP tab error:", errTP) end
     local okProg, errProg = pcall(function() Progression.build(patchUI(ProgTab), FISHING_ZONES) end)
-    if not okProg then warn("[FishTP] Progression tab error:", errProg) end
+    if not okProg then warn("[Nova] Progression tab error:", errProg) end
     local okMisc, errMisc = pcall(function() Extras.build(MiscTab) end)
-    if not okMisc then warn("[FishTP] Misc tab error:", errMisc) end
-    local okSet, errSet = pcall(function() FishSettings.build(SettingsTab) end)
-    if not okSet then warn("[FishTP] Settings tab error:", errSet) end
-    print("[FishTP] GUI built")
+    if not okMisc then warn("[Nova] Misc tab error:", errMisc) end
+    local okSet, errSet = pcall(function() NovaSettings.build(SettingsTab) end)
+    if not okSet then warn("[Nova] Settings tab error:", errSet) end
+    print("[Nova] GUI built")
 else
-    warn("[FishTP] window setup error:", errWin)
+    warn("[Nova] window setup error:", errWin)
 end
 
 -- ============================================================
@@ -295,7 +295,7 @@ local function toggleUI()
     pcall(function() MainWindow:SetVisible(visible) end)
 end
 
-FishSettings.bindKey("toggleKey", toggleUI)
+NovaSettings.bindKey("toggleKey", toggleUI)
 
 -- ============================================================
 -- boot state
@@ -307,7 +307,7 @@ task.spawn(function()
     if AutoReel and _G.Config.ReelMode ~= "Manual" then AutoReel(true) end
     if _G.Config.AutoSell and AutoSell then AutoSell(true) end
     task.wait(0.5)
-    FishSettings.autoloadConfig()
+    NovaSettings.autoloadConfig()
 end)
 
-print("[FishTP] ready — " .. tostring(FishSettings.ui.toggleKey) .. " toggles UI, " .. tostring(FishSettings.ui.panicKey) .. " is the panic key")
+print("[Nova] ready — " .. tostring(NovaSettings.ui.toggleKey) .. " toggles UI, " .. tostring(NovaSettings.ui.panicKey) .. " is the panic key")

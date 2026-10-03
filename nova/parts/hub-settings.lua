@@ -1,10 +1,10 @@
 -- ============================================================
 -- Settings tab: themes (left) and configs (right), both saved as JSON in the workspace folder
 -- ============================================================
-local FishSettings = (function()
+local NovaSettings = (function()
     local M = {}
     local HttpService = game:GetService("HttpService")
-    local CONFIG_DIR, THEME_DIR, AUTO_FILE = "fishtp/configs/", "fishtp/themes/", "fishtp/autoload.json"
+    local CONFIG_DIR, THEME_DIR, AUTO_FILE = "nova/configs/", "nova/themes/", "nova/autoload.json"
     local BUILTIN_THEMES = {
         Default = { Accent = { 145, 80, 255 }, Background = { 38, 38, 42 }, Text = { 255, 255, 255 }, Rainbow = false },
         Crimson = { Accent = { 230, 60, 70 }, Background = { 30, 28, 30 }, Text = { 255, 255, 255 }, Rainbow = false },
@@ -20,10 +20,26 @@ local FishSettings = (function()
     local function ensureDir(dir)
         if not canFiles then return end
         pcall(function()
-            if not isfolder("fishtp") then makefolder("fishtp") end
+            if not isfolder("nova") then makefolder("nova") end
             if not isfolder(dir:sub(1, -2)) then makefolder(dir:sub(1, -2)) end
         end)
     end
+
+    -- One-time move of what the previous build saved (configs, themes, keys, webhook) from its old folder.
+    pcall(function()
+        if not canFiles or isfolder("nova") or not isfolder("fishtp") then return end
+        makefolder("nova")
+        for _, sub in ipairs({ "", "configs", "themes" }) do
+            local from = sub == "" and "fishtp" or ("fishtp/" .. sub)
+            if isfolder(from) then
+                if sub ~= "" and not isfolder("nova/" .. sub) then makefolder("nova/" .. sub) end
+                for _, file in ipairs(listfiles(from)) do
+                    local name = tostring(file):match("([^/\\]+%.json)$")
+                    if name then writefile("nova/" .. (sub == "" and "" or (sub .. "/")) .. name, readfile(file)) end
+                end
+            end
+        end
+    end)
 
     local function cleanName(text)
         text = tostring(text or ""):gsub("[^%w _%-]", ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -70,11 +86,11 @@ local FishSettings = (function()
 
     -- ---- interface prefs (keys, window layout, webhook): not part of configs ------------------------
 
-    local UI_FILE = "fishtp/ui.json"
+    local UI_FILE = "nova/ui.json"
     M.ui = { toggleKey = "RightShift", panicKey = "End", webhook = "", layout = nil }
     for key, value in pairs(readJson(UI_FILE) or {}) do M.ui[key] = value end
     function M.saveUI()
-        ensureDir("fishtp/")
+        ensureDir("nova/")
         writeJson(UI_FILE, M.ui)
     end
 
@@ -84,7 +100,7 @@ local FishSettings = (function()
         local UIS = game:GetService("UserInputService")
         local last = 0
         local function fire()
-            if os.clock() - last < 0.3 or FishUI.listening > 0 then return end
+            if os.clock() - last < 0.3 or NovaUI.listening > 0 then return end
             last = os.clock()
             fn()
         end
@@ -94,13 +110,13 @@ local FishSettings = (function()
         end
         pcall(function()
             UIS.InputBegan:Connect(function(input, typing)
-                if getgenv().FishTPSession ~= FISHTP_SESSION or typing then return end
+                if getgenv().NovaSession ~= NOVA_SESSION or typing then return end
                 if input.KeyCode == code() then fire() end
             end)
         end)
         task.spawn(function()
             local was = false
-            while getgenv().FishTPSession == FISHTP_SESSION do
+            while getgenv().NovaSession == NOVA_SESSION do
                 task.wait(0.05)
                 local c = code()
                 local down = c ~= nil and UIS:IsKeyDown(c)
@@ -114,7 +130,7 @@ local FishSettings = (function()
 
     local function snapshotConfig()
         local values = {}
-        for key, ctl in pairs(FishUI.controls) do
+        for key, ctl in pairs(NovaUI.controls) do
             if ctl.Get then
                 local v = ctl:Get()
                 if type(v) == "boolean" or type(v) == "number" or type(v) == "string" then values[key] = v end
@@ -122,7 +138,7 @@ local FishSettings = (function()
         end
         local data = { controls = values }
         pcall(function() data.spots = Progression.getSpots() end)
-        pcall(function() data.positions = getgenv().FishTPPositions and getgenv().FishTPPositions.get() end)
+        pcall(function() data.positions = getgenv().NovaPositions and getgenv().NovaPositions.get() end)
         return data
     end
 
@@ -135,7 +151,7 @@ local FishSettings = (function()
                 for name, pos in pairs(data.spots) do all[name] = pos end
                 Progression.setSpots(all)
             end
-            local positions = getgenv().FishTPPositions
+            local positions = getgenv().NovaPositions
             if positions and type(data.positions) == "table" then
                 local all = positions.get()
                 local merged = {}
@@ -145,7 +161,7 @@ local FishSettings = (function()
             end
         end)
         for key, value in pairs(data.controls or {}) do
-            local ctl = FishUI.controls[key]
+            local ctl = NovaUI.controls[key]
             if ctl and ctl.Set then
                 if pcall(ctl.Set, ctl, value) then count = count + 1 end
             end
@@ -159,8 +175,8 @@ local FishSettings = (function()
         local data = name and readJson(CONFIG_DIR .. name .. ".json")
         if data then
             local n = applyConfig(data)
-            print("[FishTP] autoloaded config '" .. name .. "' (" .. n .. " settings)")
-            FishUI.Notify("Config loaded", name .. " (" .. n .. " settings)")
+            print("[Nova] autoloaded config '" .. name .. "' (" .. n .. " settings)")
+            NovaUI.Notify("Config loaded", name .. " (" .. n .. " settings)")
         end
     end
 
@@ -168,7 +184,7 @@ local FishSettings = (function()
     function M.autoloadTheme()
         local name = autoload().theme
         local data = name and (readJson(THEME_DIR .. name .. ".json") or BUILTIN_THEMES[name])
-        if data then FishUI.SetTheme(data) end
+        if data then NovaUI.SetTheme(data) end
     end
 
     -- ---- UI -----------------------------------------------------------------------------------
@@ -180,13 +196,13 @@ local FishSettings = (function()
 
         -- RGB sliders for the three colours; they follow the theme when one is loaded
         local sliders = {}
-        local current = FishUI.GetTheme()
+        local current = NovaUI.GetTheme()
         local function pushTheme()
             local t = {}
             for _, part in ipairs({ "Accent", "Background", "Text" }) do
                 t[part] = { sliders[part][1]:Get(), sliders[part][2]:Get(), sliders[part][3]:Get() }
             end
-            FishUI.SetTheme(t)
+            NovaUI.SetTheme(t)
         end
         local rainbowToggle
         for _, part in ipairs({ "Accent", "Background", "Text" }) do
@@ -201,9 +217,9 @@ local FishSettings = (function()
         rainbowToggle = themeSec:AddToggle({
             Title = "Rainbow accent", Default = current.Rainbow,
             Callback = function(on)
-                FishUI.SetTheme({ Rainbow = on })
+                NovaUI.SetTheme({ Rainbow = on })
                 if not on then
-                    local t = FishUI.GetTheme()
+                    local t = NovaUI.GetTheme()
                     for i = 1, 3 do sliders.Accent[i]:Set(t.Accent[i], true) end
                 end
             end,
@@ -229,7 +245,7 @@ local FishSettings = (function()
         end
         local function say(para, text)
             pcall(function() para:SetDesc(text) end)
-            FishUI.Notify(para == themeStatus and "Themes" or "Configs", text, 3)
+            NovaUI.Notify(para == themeStatus and "Themes" or "Configs", text, 3)
         end
         local function refreshThemes() themeDropdown:SetOptions(themeNames()) end
         themeDropdown = savedThemes:AddDropdown({
@@ -243,7 +259,7 @@ local FishSettings = (function()
                 local name = cleanName(themeName)
                 if not name or BUILTIN_THEMES[name] then return say(themeStatus, "Type a new name first.") end
                 ensureDir(THEME_DIR)
-                if writeJson(THEME_DIR .. name .. ".json", FishUI.GetTheme()) then
+                if writeJson(THEME_DIR .. name .. ".json", NovaUI.GetTheme()) then
                     refreshThemes()
                     themeDropdown:Set(name, true)
                     selectedTheme = name
@@ -258,7 +274,7 @@ local FishSettings = (function()
             Callback = function()
                 if BUILTIN_THEMES[selectedTheme] then return say(themeStatus, "Built-in themes can't be overwritten. Use Create.") end
                 ensureDir(THEME_DIR)
-                say(themeStatus, writeJson(THEME_DIR .. selectedTheme .. ".json", FishUI.GetTheme()) and ("Saved " .. selectedTheme) or "Couldn't write the file.")
+                say(themeStatus, writeJson(THEME_DIR .. selectedTheme .. ".json", NovaUI.GetTheme()) and ("Saved " .. selectedTheme) or "Couldn't write the file.")
             end,
         })
         savedThemes:AddButton({
@@ -266,8 +282,8 @@ local FishSettings = (function()
             Callback = function()
                 local data = BUILTIN_THEMES[selectedTheme] or readJson(THEME_DIR .. selectedTheme .. ".json")
                 if not data then return say(themeStatus, "Can't read " .. tostring(selectedTheme)) end
-                FishUI.SetTheme(data)
-                showTheme(FishUI.GetTheme())
+                NovaUI.SetTheme(data)
+                showTheme(NovaUI.GetTheme())
                 say(themeStatus, "Loaded " .. selectedTheme)
             end,
         })
@@ -419,7 +435,7 @@ local FishSettings = (function()
         ifaceSec:AddButton({
             Title = "Reset Window",
             Callback = function()
-                local win = getgenv().FishTPWindow
+                local win = getgenv().NovaWindow
                 if win and win.ResetLayout then win:ResetLayout() end
             end,
         })

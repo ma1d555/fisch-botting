@@ -25,8 +25,8 @@
 				if err == STOP then break end
 				-- A script error names a line of the joined script: the loader says which part and line that is.
 				local message = tostring(err)
-				local where = getgenv and getgenv().FishTPWhere
-				if where then message = message:gsub("FishTP:(%d+):", function(n) return where(tonumber(n)) .. ":" end) end
+				local where = getgenv and getgenv().NovaWhere
+				if where then message = message:gsub("Nova:(%d+):", function(n) return where(tonumber(n)) .. ":" end) end
 				setStatus("Stuck on " .. rod, message)
 				break
 			end
@@ -63,8 +63,8 @@
 	end
 
 	-- Unload: the plan stops, fishing goes back to how it was, and nothing is left held, pressed or floating.
-	if getgenv().FishTPOnUnload then
-		getgenv().FishTPOnUnload(function()
+	if getgenv().NovaOnUnload then
+		getgenv().NovaOnUnload(function()
 			Progression.stop()
 			pcall(Fish.stop)
 			pcall(G.mouse, false)
@@ -396,9 +396,57 @@
 		log("Progression tab ready")
 	end
 
+	-- XP into the current level. The game keeps it in one of a few places depending on the version: the first that
+	-- has a number is used from then on, and where it came from (or what was looked at) goes in the log once.
+	local xpGetter, xpNextTry, xpLogged = nil, 0, false
+	local XP_NAMES = { "xp", "Xp", "XP", "exp", "Exp", "experience", "Experience" }
+	local function findXP()
+		local stats
+		pcall(function() stats = workspace.PlayerStats[LP.Name].T[LP.Name].Stats end)
+		if stats then
+			for _, key in ipairs(XP_NAMES) do
+				local obj = stats:FindFirstChild(key)
+				if obj and obj:IsA("ValueBase") and tonumber(obj.Value) then
+					return function() return tonumber(obj.Value) end, "PlayerStats Stats." .. key
+				end
+			end
+		end
+		local board = LP:FindFirstChild("leaderstats")
+		for _, key in ipairs(XP_NAMES) do
+			local obj = board and board:FindFirstChild(key)
+			if obj and tonumber(obj.Value) then return function() return tonumber(obj.Value) end, "leaderstats." .. key end
+		end
+		for _, path in ipairs({ { "Stats", "xp" }, { "Stats", "XP" }, { "Stats", "Xp" }, { "xp" }, { "XP" }, { "Xp" }, { "Experience" }, { "Stats", "Experience" } }) do
+			local ok, value = pcall(function() return G.data().PlayerDataReplicator:TryIndex(path) end)
+			if ok and tonumber(value) then
+				return function()
+					local okNow, now = pcall(function() return G.data().PlayerDataReplicator:TryIndex(path) end)
+					return okNow and tonumber(now) or nil
+				end, "PlayerData " .. table.concat(path, ".")
+			end
+		end
+		if not xpLogged then
+			xpLogged = true
+			local names = {}
+			pcall(function() for _, child in ipairs(stats:GetChildren()) do names[#names + 1] = child.Name end end)
+			log("xp: not found (PlayerStats Stats has: " .. (#names > 0 and table.concat(names, ", ") or "nothing") .. ")")
+		end
+	end
+	function Progression.xp()
+		if not xpGetter and os.clock() >= xpNextTry then
+			xpNextTry = os.clock() + 30
+			local getter, source = findXP()
+			if getter then
+				xpGetter = getter
+				log("xp: read from " .. source)
+			end
+		end
+		return xpGetter and xpGetter() or nil
+	end
+
 	-- What the hub's Misc tab and Settings read and call (stats panel, panic key, configs).
 	function Progression.stats()
-		return { catches = state.catches, level = G.level(), coins = tonumber(G.coins()) or 0, running = state.running }
+		return { catches = state.catches, level = G.level(), coins = tonumber(G.coins()) or 0, xp = Progression.xp(), running = state.running }
 	end
 	function Progression.panic()
 		Progression.stop()

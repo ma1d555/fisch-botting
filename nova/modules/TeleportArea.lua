@@ -1,6 +1,6 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- TeleportArea (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- TeleportArea (Nova module), deobfuscated and cleaned.
 -- Teleports to fishing zones (hardcoded CFrames, else name match, else the first zone part with a raycast down to
 -- land or water) and equips a rod. A background loop puts you back on your boat or on the spot when you fall
 -- below it or swim in deep water. The hub also had a Rowboat buy/spawn helper here (Moosewood Shipwright,
@@ -15,7 +15,7 @@ me = LocalPlayer
 local returnCFrame = nil
 local fishingSpot = nil
 task.spawn(function()
-	while getgenv().FishTPSession == FISHTP_SESSION do
+	while getgenv().NovaSession == NOVA_SESSION do
 		task.wait(0.5)
 		pcall(function()
 			if fishingSpot then

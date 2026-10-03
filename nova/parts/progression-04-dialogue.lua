@@ -472,6 +472,7 @@
 			state.catches = state.catches + 1
 			local name = type(fish) == "table" and tostring(fish.Name or "?") or "?"
 			state.caught[name] = (state.caught[name] or 0) + 1
+			for _, hook in ipairs(Progression.catchHooks) do task.spawn(pcall, hook, name, fish) end
 		end)
 	end)
 

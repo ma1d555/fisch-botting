@@ -1,12 +1,12 @@
 -- (Progression build) this run's session: loops and event handlers stop when it ends
-local FISHTP_SESSION = getgenv().FishTPSession
--- AreaTP (KAN-FISCH / ShieldTeam hub module), deobfuscated and cleaned.
+local NOVA_SESSION = getgenv().NovaSession
+-- AreaTP (Nova module), deobfuscated and cleaned.
 -- Builds the teleport sections: NPCs (anglers, Merlin, appraisers, plus a live scan of world.npcs), areas
 -- (hardcoded zones + workspace.zones.player + world.spawns.TpSpots), coordinates, zones, players, the 20
--- balloons, and saved spots kept in saved_positions_shieldteam.json. Called with the 4 UI sections.
+-- balloons, and saved spots kept in nova_positions.json. Called with the 4 UI sections.
 -- Fixed deobfuscator mistakes: the NPC scan called GetChildren("pairs") (the VM does pairs(npcs:GetChildren())),
 -- and the saved-spots refresh passed nil to SetValues (the VM passes the list from getSavedList()).
--- UI text is partly Indonesian: "Teleport ke" = teleport to, Pemain = player, Posisi = position, Balon = balloon.
+-- The UI text was partly Indonesian; it is English now.
 -- The hub also had a getMod/"[NewFish5]" module loader here that nothing called; it was dropped as dead code.
 
 game:GetService("ReplicatedStorage") -- fetched by the hub, never used
@@ -606,7 +606,7 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 	end
 
 	mainSection:AddButton({
-		Title = "Teleport ke Pemain",
+		Title = "Teleport to Player",
 		Callback = function()
 			if selectedPlayer ~= "None" then
 				teleportToPlayer(selectedPlayer)
@@ -614,7 +614,7 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 		end
 	})
 
-	balloonSection:AddSeperator({ Title = "Ballon Teleport" })
+	balloonSection:AddSeperator({ Title = "Balloon Teleport" })
 
 	local function teleportToBalloon(position)
 		local Character = LocalPlayer.Character
@@ -625,29 +625,29 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 	end
 
 	for _, v in ipairs({
-		{ name = "Balon 1", pos = Vector3.new(201.9, 162, -33.7) },
-		{ name = "Balon 2", pos = Vector3.new(1005, 131, -1234) },
-		{ name = "Balon 3", pos = Vector3.new(-2800, 260, 1550) },
-		{ name = "Balon 4", pos = Vector3.new(-1244, 131, 1594) },
-		{ name = "Balon 5", pos = Vector3.new(-2001, 190, 389) },
-		{ name = "Balon 6", pos = Vector3.new(-1129, 228, -1158) },
-		{ name = "Balon 7", pos = Vector3.new(1237, 140, 551) },
-		{ name = "Balon 8", pos = Vector3.new(2747, 142, -785) },
-		{ name = "Balon 9", pos = Vector3.new(-3881, 131, 326) },
-		{ name = "Balon 10", pos = Vector3.new(-1804, 188, 256) },
-		{ name = "Balon 11", pos = Vector3.new(-9.5, 157, -1079) },
-		{ name = "Balon 12", pos = Vector3.new(545, 295, -1887) },
-		{ name = "Balon 13", pos = Vector3.new(-2015, 224, -496) },
-		{ name = "Balon 14", pos = Vector3.new(506, 172, 220) },
-		{ name = "Balon 15", pos = Vector3.new(1742, 141, -2481) },
-		{ name = "Balon 16", pos = Vector3.new(1742, 141, -2481) },
-		{ name = "Balon 17", pos = Vector3.new(106, 184, 2074) },
-		{ name = "Balon 18", pos = Vector3.new(3019, -130, 2451) },
-		{ name = "Balon 19", pos = Vector3.new(5934, 259, 216) },
-		{ name = "Balon 20", pos = Vector3.new(-1520, 130, 2194) }
+		{ name = "Balloon 1", pos = Vector3.new(201.9, 162, -33.7) },
+		{ name = "Balloon 2", pos = Vector3.new(1005, 131, -1234) },
+		{ name = "Balloon 3", pos = Vector3.new(-2800, 260, 1550) },
+		{ name = "Balloon 4", pos = Vector3.new(-1244, 131, 1594) },
+		{ name = "Balloon 5", pos = Vector3.new(-2001, 190, 389) },
+		{ name = "Balloon 6", pos = Vector3.new(-1129, 228, -1158) },
+		{ name = "Balloon 7", pos = Vector3.new(1237, 140, 551) },
+		{ name = "Balloon 8", pos = Vector3.new(2747, 142, -785) },
+		{ name = "Balloon 9", pos = Vector3.new(-3881, 131, 326) },
+		{ name = "Balloon 10", pos = Vector3.new(-1804, 188, 256) },
+		{ name = "Balloon 11", pos = Vector3.new(-9.5, 157, -1079) },
+		{ name = "Balloon 12", pos = Vector3.new(545, 295, -1887) },
+		{ name = "Balloon 13", pos = Vector3.new(-2015, 224, -496) },
+		{ name = "Balloon 14", pos = Vector3.new(506, 172, 220) },
+		{ name = "Balloon 15", pos = Vector3.new(1742, 141, -2481) },
+		{ name = "Balloon 16", pos = Vector3.new(1742, 141, -2481) },
+		{ name = "Balloon 17", pos = Vector3.new(106, 184, 2074) },
+		{ name = "Balloon 18", pos = Vector3.new(3019, -130, 2451) },
+		{ name = "Balloon 19", pos = Vector3.new(5934, 259, 216) },
+		{ name = "Balloon 20", pos = Vector3.new(-1520, 130, 2194) }
 	}) do
 		balloonSection:AddButton({
-			Title = "Teleport ke " .. v.name,
+			Title = "Teleport to " .. v.name,
 			Callback = function()
 				teleportToBalloon(v.pos)
 			end
@@ -655,9 +655,10 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 	end
 
 	local savedPositions = {}
-	local spotName = "SHIELD"
+	local spotName = "Spot"
 	local selectedSpot = "None"
-	local SAVE_FILE = "saved_positions_shieldteam.json"
+	local SAVE_FILE = "nova_positions.json"
+	local OLD_SAVE_FILE = "saved_positions_shieldteam.json" -- read once if the new file isn't there yet, so spots carry over
 
 	local function saveToFile()
 		pcall(function()
@@ -671,8 +672,9 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 
 	savedPositions = (function()
 		local ok, decoded = pcall(function()
-			if isfile and isfile(SAVE_FILE) then
-				local json = readfile(SAVE_FILE)
+			local file = isfile and (isfile(SAVE_FILE) and SAVE_FILE or (isfile(OLD_SAVE_FILE) and OLD_SAVE_FILE))
+			if file then
+				local json = readfile(file)
 
 				return HttpService:JSONDecode(json)
 			end
@@ -692,14 +694,14 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 	end)()
 
 	-- configs read and replace these (Settings tab)
-	getgenv().FishTPPositions = {
+	getgenv().NovaPositions = {
 		get = function() return savedPositions end,
 		set = function(all)
 			if type(all) ~= "table" then return end
 			for k in pairs(savedPositions) do savedPositions[k] = nil end
 			for k, v in pairs(all) do savedPositions[k] = v end
 			saveToFile()
-			if getgenv().FishTPPositionsRefresh then pcall(getgenv().FishTPPositionsRefresh) end
+			if getgenv().NovaPositionsRefresh then pcall(getgenv().NovaPositionsRefresh) end
 		end,
 	}
 
@@ -714,7 +716,7 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 	end
 
 	savedSection:AddInput({
-		Title = "Name Spot",
+		Title = "Spot Name",
 		Default = spotName,
 		Callback = function(newName)
 			if newName and newName ~= "" then
@@ -759,7 +761,7 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 			end
 		end)
 	end
-	getgenv().FishTPPositionsRefresh = refreshSavedDropdown
+	getgenv().NovaPositionsRefresh = refreshSavedDropdown
 
 	savedSection:AddButton({
 		Title = "Save Position",
@@ -782,7 +784,7 @@ return function(mainSection, savedSection, npcSection, balloonSection)
 		end
 	})
 	savedSection:AddButton({
-		Title = "Teleport ke Posisi",
+		Title = "Teleport to Position",
 		Callback = function()
 			if selectedSpot ~= "None" and savedPositions[selectedSpot] then
 				local Character = LocalPlayer.Character
